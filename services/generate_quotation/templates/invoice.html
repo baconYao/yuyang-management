@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>請款單 - {{ invoice.customer_name }}</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="invoice-container">
+      <!-- 公司標題 -->
+      <header class="company-header">
+        <h1 class="company-name">宇陽科技有限公司</h1>
+        <div class="contact-info">
+          <p>TEL: 037-474982</p>
+          <p>FAX: 037-474989</p>
+          <div class="document-type">
+            <span class="checkbox">□</span> 試用
+            <span class="checkbox">□</span> 訂購
+            <span class="checkbox checked">☑</span> 請款單
+          </div>
+        </div>
+      </header>
+
+      <!-- 客戶資訊 -->
+      <section class="customer-info">
+        <table class="info-table">
+          <tr>
+            <td class="label">客戶名稱</td>
+            <td class="value">{{ invoice.customer_name }}</td>
+            <td class="label">發票抬頭</td>
+            <td class="value" colspan="3">{{ invoice.customer_name }}</td>
+          </tr>
+          <tr>
+            <td class="label">統一編號</td>
+            <td class="value">{{ invoice.tax_id }}</td>
+            <td class="label">聯絡人</td>
+            <td class="value">{{ invoice.contact_person }}</td>
+            <td class="label">電話</td>
+            <td class="value">{{ invoice.phone }}</td>
+          </tr>
+          <tr>
+            <td class="label">地址</td>
+            <td class="value" colspan="5"></td>
+          </tr>
+        </table>
+      </section>
+
+      <!-- 品項表格 -->
+      <section class="items-section">
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th class="item-name">品名</th>
+              <th class="quantity">數量</th>
+              <th class="unit-price">單價</th>
+              <th class="amount">金額</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in invoice.item_list %}
+            <tr>
+              <td class="item-name">{{ item.name }}</td>
+              <td class="quantity">{{ item.quantity }}</td>
+              <td class="unit-price">{{ item.unit_price }}</td>
+              <td class="amount">{{ item.amount }}</td>
+            </tr>
+            {% endfor %}
+            <!-- 補空行到至少5行 -->
+            {% set items_length = invoice.item_list|length %} {% for i in
+            range(5 - items_length) %}
+            <tr>
+              <td class="item-name"></td>
+              <td class="quantity"></td>
+              <td class="unit-price"></td>
+              <td class="amount"></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+
+      <!-- 金額計算 -->
+      <section class="totals-section">
+        <table class="totals-table">
+          <tr>
+            <td class="total-label">合計</td>
+            <td class="total-value">{{ invoice.totals.subtotal }}</td>
+          </tr>
+          <tr>
+            <td class="total-label">營業稅 5%</td>
+            <td class="total-value">{{ invoice.totals.tax }}</td>
+          </tr>
+          <tr class="final-total">
+            <td class="total-label">總計</td>
+            <td class="total-value">{{ invoice.totals.total }}</td>
+          </tr>
+        </table>
+      </section>
+
+      <!-- 備註 -->
+      {% if invoice.notes %}
+      <section class="notes-section">
+        <h3>備註</h3>
+        <p>{{ invoice.notes }}</p>
+      </section>
+      {% endif %}
+
+      <!-- 頁腳 -->
+      <footer class="invoice-footer">
+        <p>感謝您的惠顧！</p>
+        <p>如有任何問題，請隨時與我們聯繫。</p>
+      </footer>
+    </div>
+  </body>
+</html>

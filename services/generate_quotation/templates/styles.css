@@ -1,0 +1,257 @@
+/* 請款單樣式 */
+@page {
+  size: A4;
+  margin: 2cm;
+}
+
+body {
+  font-family: "PingFang TC", "Microsoft JhengHei", "Helvetica Neue", Arial,
+    sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+
+.invoice-container {
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+/* 公司標題 */
+.company-header {
+  text-align: center;
+  margin-bottom: 30px;
+  border-bottom: 2px solid #333;
+  padding-bottom: 20px;
+}
+
+.company-name {
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0 0 10px 0;
+  color: #2c3e50;
+}
+
+.contact-info {
+  font-size: 11px;
+  color: #666;
+}
+
+.contact-info p {
+  margin: 2px 0;
+}
+
+.document-type {
+  margin-top: 10px;
+  font-size: 10px;
+}
+
+.checkbox {
+  margin-right: 15px;
+  font-weight: bold;
+}
+
+.checkbox.checked {
+  color: #e74c3c;
+}
+
+/* 客戶資訊表格 */
+.customer-info {
+  margin-bottom: 25px;
+}
+
+.info-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #333;
+}
+
+.info-table td {
+  padding: 8px 12px;
+  border: 1px solid #333;
+  vertical-align: top;
+}
+
+.info-table .label {
+  background-color: #f8f9fa;
+  font-weight: bold;
+  width: 15%;
+  text-align: center;
+}
+
+.info-table .value {
+  width: 35%;
+  background-color: #fff;
+}
+
+/* 品項表格 */
+.items-section {
+  margin-bottom: 25px;
+}
+
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #333;
+}
+
+.items-table th,
+.items-table td {
+  padding: 10px 8px;
+  border: 1px solid #333;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.items-table thead th {
+  background-color: #34495e;
+  color: white;
+  font-weight: bold;
+  font-size: 11px;
+}
+
+.items-table tbody td {
+  background-color: #fff;
+}
+
+.items-table .item-name {
+  text-align: left;
+  width: 50%;
+}
+
+.items-table .quantity {
+  width: 15%;
+}
+
+.items-table .unit-price {
+  width: 17.5%;
+}
+
+.items-table .amount {
+  width: 17.5%;
+  font-weight: bold;
+}
+
+/* 金額計算 */
+.totals-section {
+  margin-bottom: 25px;
+}
+
+.totals-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #333;
+}
+
+.totals-table td {
+  padding: 12px 15px;
+  border: 1px solid #333;
+}
+
+.totals-table .total-label {
+  background-color: #3498db;
+  color: white;
+  font-weight: bold;
+  text-align: right;
+  width: 30%;
+}
+
+.totals-table .total-value {
+  background-color: #ecf0f1;
+  font-weight: bold;
+  text-align: right;
+  width: 70%;
+  font-size: 14px;
+}
+
+.totals-table .final-total .total-label {
+  background-color: #e74c3c;
+  font-size: 14px;
+}
+
+.totals-table .final-total .total-value {
+  background-color: #fadbd8;
+  font-size: 16px;
+  color: #e74c3c;
+}
+
+/* 備註 */
+.notes-section {
+  margin-bottom: 25px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 5px;
+}
+
+.notes-section h3 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: #495057;
+}
+
+.notes-section p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* 頁腳 */
+.invoice-footer {
+  text-align: center;
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #ddd;
+  font-size: 10px;
+  color: #666;
+}
+
+.invoice-footer p {
+  margin: 5px 0;
+}
+
+/* 分頁控制 */
+.page-break {
+  page-break-before: always;
+}
+
+.no-break {
+  page-break-inside: avoid;
+}
+
+/* 響應式設計 */
+@media print {
+  body {
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  .invoice-container {
+    max-width: none;
+  }
+}
+
+/* 數字格式化 */
+.amount,
+.total-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 空行樣式 */
+.items-table tbody tr:empty {
+  height: 40px;
+}
+
+/* 表格行高 */
+.items-table tbody tr {
+  min-height: 35px;
+}
+
+/* 特殊字體 */
+.company-name {
+  font-family: "PingFang TC", "Microsoft JhengHei", "Helvetica Neue", Arial,
+    sans-serif;
+  letter-spacing: 1px;
+}
