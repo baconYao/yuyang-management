@@ -12,12 +12,13 @@
       <header class="company-header">
         <h1 class="company-name">宇陽科技有限公司</h1>
         <div class="contact-info">
-          <p>TEL: 037-474982</p>
-          <p>FAX: 037-474989</p>
+          <p>TEL: 037-474982　FAX: 037-474989</p>
           <div class="document-type">
-            <span class="checkbox">□</span> 試用
-            <span class="checkbox">□</span> 訂購
-            <span class="checkbox checked">☑</span> 請款單
+            <span class="invoice-title">請款單</span>
+          </div>
+          <div class="invoice-date">
+            <span class="date-label">請款日期：</span>
+            <span class="date-value">{{ invoice.invoice_date }}</span>
           </div>
         </div>
       </header>
@@ -80,20 +81,35 @@
         </table>
       </section>
 
+      <!-- 發票資訊 -->
+      <section class="invoice-info-section">
+        <table class="invoice-info-table">
+          <tr>
+            <td class="invoice-label">發票號碼</td>
+            <td class="invoice-value">{{ invoice.invoice_number }}</td>
+            <td class="invoice-label">發票日期</td>
+            <td class="invoice-value">{{ invoice.invoice_issue_date }}</td>
+            <td class="invoice-label">發票種類</td>
+            <td class="invoice-value">{{ invoice.invoice_type }}</td>
+          </tr>
+        </table>
+      </section>
+
       <!-- 金額計算 -->
       <section class="totals-section">
         <table class="totals-table">
           <tr>
             <td class="total-label">合計</td>
             <td class="total-value">{{ invoice.totals.subtotal }}</td>
-          </tr>
-          <tr>
             <td class="total-label">營業稅 5%</td>
-            <td class="total-value">{{ invoice.totals.tax }}</td>
-          </tr>
-          <tr class="final-total">
-            <td class="total-label">總計</td>
-            <td class="total-value">{{ invoice.totals.total }}</td>
+            <td class="total-value">
+              {% if invoice.invoice_type == "無發票" %} 未 {% else %} {{
+              invoice.totals.tax }} {% endif %}
+            </td>
+            <td class="total-label final-total-label">總計</td>
+            <td class="total-value final-total-value">
+              {{ invoice.totals.total }}
+            </td>
           </tr>
         </table>
       </section>
@@ -106,11 +122,25 @@
       </section>
       {% endif %}
 
-      <!-- 頁腳 -->
-      <footer class="invoice-footer">
-        <p>感謝您的惠顧！</p>
-        <p>如有任何問題，請隨時與我們聯繫。</p>
-      </footer>
+      <!-- 簽名欄位 -->
+      <section class="signature-section">
+        <table class="signature-table">
+          <tr>
+            <td class="signature-field">
+              <div class="signature-label">主管</div>
+              <div class="signature-line"></div>
+            </td>
+            <td class="signature-field">
+              <div class="signature-label">會計</div>
+              <div class="signature-line"></div>
+            </td>
+            <td class="signature-field">
+              <div class="signature-label">簽收</div>
+              <div class="signature-line"></div>
+            </td>
+          </tr>
+        </table>
+      </section>
     </div>
   </body>
 </html>

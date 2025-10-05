@@ -7,6 +7,7 @@ HTML PDF 生成器
 
 import json
 import os
+from datetime import datetime
 from typing import Any, Dict, List
 
 from jinja2 import Environment, FileSystemLoader
@@ -63,12 +64,17 @@ class HTMLPDFGenerator:
         except (ValueError, TypeError):
             return str(value)
 
-    def calculate_totals(self, items: List[Dict[str, Any]]) -> Dict[str, float]:
+    def get_current_date(self) -> str:
+        """取得當前日期（yyyy-mm-dd 格式）"""
+        return datetime.now().strftime("%Y-%m-%d")
+
+    def calculate_totals(self, items: List[Dict[str, Any]], invoice_type: str = "") -> Dict[str, float]:
         """
         計算總金額
 
         Args:
             items: 品項列表
+            invoice_type: 發票種類
 
         Returns:
             包含小計、稅額、總計的字典
@@ -82,9 +88,14 @@ class HTMLPDFGenerator:
             except (ValueError, TypeError):
                 continue
 
-        tax_rate = 0.05  # 營業稅 5%
-        tax_amount = subtotal * tax_rate
-        total = subtotal + tax_amount
+        # 根據發票種類決定是否計算稅金
+        if invoice_type == "無發票":
+            tax_amount = 0
+            total = subtotal
+        else:
+            tax_rate = 0.05  # 營業稅 5%
+            tax_amount = subtotal * tax_rate
+            total = subtotal + tax_amount
 
         return {"subtotal": subtotal, "tax": tax_amount, "total": total}
 
@@ -138,8 +149,13 @@ class HTMLPDFGenerator:
             
             processed_items.append(processed_item)
 
-        # 計算總金額
-        totals = self.calculate_totals(processed_items)
+        # 計算總金額（傳遞發票種類）
+        invoice_type = invoice_data.get("invoice_type", "")
+        totals = self.calculate_totals(processed_items, invoice_type)
+
+        # 處理日期欄位
+        invoice_date = self.get_current_date()  # 請款日期（系統生成）
+        invoice_issue_date = invoice_data.get("invoice_issue_date", "")  # 發票日期（從資料取得）
 
         # 準備完整的請款單資料
         prepared_data = {
@@ -147,6 +163,8 @@ class HTMLPDFGenerator:
             "contact_person": invoice_data.get("contact_person", ""),
             "phone": invoice_data.get("phone", ""),
             "invoice_number": invoice_data.get("invoice_number", ""),
+            "invoice_date": invoice_date,  # 請款日期（系統生成）
+            "invoice_issue_date": invoice_issue_date,  # 發票日期
             "tax_id": invoice_data.get("tax_id", ""),
             "invoice_type": invoice_data.get("invoice_type", ""),
             "notes": invoice_data.get("notes", ""),
@@ -309,7 +327,8 @@ class HTMLPDFGenerator:
         Returns:
             請款單資訊
         """
-        totals = self.calculate_totals(invoice_data.get("items", []))
+        invoice_type = invoice_data.get("invoice_type", "")
+        totals = self.calculate_totals(invoice_data.get("items", []), invoice_type)
 
         return {
             "customer_name": invoice_data.get("customer_name", ""),
@@ -330,6 +349,7 @@ def main():
         "contact_person": "測試聯絡人",
         "phone": "03-1234567",
         "invoice_number": "TEST-001",
+        "invoice_issue_date": "2024-01-15",  # 發票日期
         "tax_id": "12345678",
         "invoice_type": "二聯",
         "notes": "測試備註",

@@ -48,13 +48,26 @@ body {
   font-size: 10px;
 }
 
-.checkbox {
-  margin-right: 15px;
+.invoice-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #e74c3c;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.invoice-date {
+  font-size: 12px;
+  color: #666;
+  margin-top: 5px;
+}
+
+.date-label {
   font-weight: bold;
 }
 
-.checkbox.checked {
-  color: #e74c3c;
+.date-value {
+  margin-left: 5px;
 }
 
 /* 客戶資訊表格 */
@@ -134,6 +147,36 @@ body {
   font-weight: bold;
 }
 
+/* 發票資訊 */
+.invoice-info-section {
+  margin-bottom: 25px;
+}
+
+.invoice-info-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #333;
+}
+
+.invoice-info-table td {
+  padding: 10px 12px;
+  border: 1px solid #333;
+  vertical-align: middle;
+}
+
+.invoice-info-table .invoice-label {
+  background-color: #f8f9fa;
+  font-weight: bold;
+  text-align: center;
+  width: 16.67%;
+}
+
+.invoice-info-table .invoice-value {
+  background-color: #fff;
+  text-align: center;
+  width: 16.67%;
+}
+
 /* 金額計算 */
 .totals-section {
   margin-bottom: 25px;
@@ -154,24 +197,26 @@ body {
   background-color: #3498db;
   color: white;
   font-weight: bold;
-  text-align: right;
-  width: 30%;
+  text-align: center;
+  width: 16.67%;
+  padding: 12px 8px;
 }
 
 .totals-table .total-value {
   background-color: #ecf0f1;
   font-weight: bold;
-  text-align: right;
-  width: 70%;
+  text-align: center;
+  width: 16.67%;
   font-size: 14px;
+  padding: 12px 8px;
 }
 
-.totals-table .final-total .total-label {
+.totals-table .final-total-label {
   background-color: #e74c3c;
   font-size: 14px;
 }
 
-.totals-table .final-total .total-value {
+.totals-table .final-total-value {
   background-color: #fadbd8;
   font-size: 16px;
   color: #e74c3c;
@@ -198,18 +243,46 @@ body {
   line-height: 1.5;
 }
 
-/* 頁腳 */
-.invoice-footer {
-  text-align: center;
-  margin-top: 40px;
-  padding-top: 20px;
-  border-top: 1px solid #ddd;
-  font-size: 10px;
-  color: #666;
+/* 簽名欄位 */
+.signature-section {
+  margin-bottom: 30px;
 }
 
-.invoice-footer p {
-  margin: 5px 0;
+.signature-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.signature-table td {
+  padding: 0;
+  border: none;
+  vertical-align: top;
+}
+
+.signature-field {
+  width: 33.33%;
+  text-align: left;
+  padding: 15px 20px;
+  border: 2px solid #333;
+  border-radius: 5px;
+  margin: 0 5px;
+  position: relative;
+}
+
+.signature-label {
+  font-size: 12px;
+  font-weight: bold;
+  margin-bottom: 15px;
+  color: #333;
+  text-align: left;
+}
+
+.signature-line {
+  height: 50px;
+  border-bottom: 2px solid #333;
+  margin-bottom: 5px;
+  background-color: #fafafa;
+  width: 100%;
 }
 
 /* 分頁控制 */

@@ -135,6 +135,11 @@ class JSONProcessor:
             "notes",
             "items",
         ]
+        
+        # 可選欄位（發票日期）
+        optional_fields = [
+            "invoice_issue_date",
+        ]
 
         for field in required_fields:
             if field not in invoice:
@@ -226,6 +231,7 @@ class JSONProcessor:
                 "tax_id": "12345678",
                 "invoice_number": "INV-001",
                 "invoice_date": "2024-01-15",
+                "invoice_issue_date": "2024-01-14",
                 "invoice_type": "二聯",
                 "notes": "範例備註",
                 "items": [
@@ -250,6 +256,7 @@ class JSONProcessor:
                 "tax_id": "87654321",
                 "invoice_number": "INV-002",
                 "invoice_date": "2024-01-16",
+                "invoice_issue_date": "2024-01-15",
                 "invoice_type": "三聯",
                 "notes": "另一個範例",
                 "items": [
