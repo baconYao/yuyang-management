@@ -47,15 +47,35 @@ class InvoiceProcessor:
 
             # 顯示處理資訊
             csv_info = self.csv_reader.get_csv_info(csv_file_path)
-            json_info = self.json_processor.get_json_info(invoices)
+            
+            # 使用 PDF 生成器處理數據以獲得正確的金額計算
+            processed_invoices = []
+            total_amount = 0
+            total_items = 0
+            
+            for invoice in invoices:
+                processed_data = self.html_generator.prepare_invoice_data(invoice)
+                processed_invoices.append(processed_data)
+                
+                # 計算總金額
+                for item in processed_data.get("item_list", []):
+                    try:
+                        amount = float(item.get("amount", 0)) if item.get("amount") else 0
+                        total_amount += amount
+                        total_items += 1
+                    except (ValueError, TypeError):
+                        continue
+            
+            tax_amount = total_amount * 0.05
+            final_total = total_amount + tax_amount
 
             print("\n處理資訊:")
             print(f"  CSV 檔案: {csv_info.get('file_path', 'N/A')}")
             print(f"  資料筆數: {csv_info.get('row_count', 0)}")
-            print(f"  品項總數: {json_info['total_items']}")
-            print(f"  總金額: {json_info['total_amount']:.0f}")
-            print(f"  營業稅: {json_info['tax_amount']:.0f}")
-            print(f"  最終總計: {json_info['final_total']:.0f}")
+            print(f"  品項總數: {total_items}")
+            print(f"  總金額: {total_amount:.0f}")
+            print(f"  營業稅: {tax_amount:.0f}")
+            print(f"  最終總計: {final_total:.0f}")
 
             # 設定輸出檔案路徑
             if output_path is None:

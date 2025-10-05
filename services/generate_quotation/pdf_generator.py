@@ -45,13 +45,6 @@ class HTMLPDFGenerator:
         """設定字體配置"""
         self.font_config = FontConfiguration()
 
-        # 嘗試註冊中文字體
-        try:
-            # 這裡可以添加自定義字體路徑
-            pass
-        except Exception as e:
-            print(f"字體設定警告: {e}")
-
     def format_currency(self, value: Any) -> str:
         """格式化貨幣"""
         try:
@@ -95,6 +88,31 @@ class HTMLPDFGenerator:
 
         return {"subtotal": subtotal, "tax": tax_amount, "total": total}
 
+    def calculate_item_amount(self, quantity: str, unit_price: str) -> float:
+        """
+        計算品項金額（數量 × 單價）
+
+        Args:
+            quantity: 數量
+            unit_price: 單價
+
+        Returns:
+            計算後的金額
+        """
+        try:
+            # 處理數量（可能包含單位，如 "2 包"）
+            qty_str = str(quantity).strip()
+            # 提取數字部分
+            qty_num = float(''.join(filter(lambda x: x.isdigit() or x == '.', qty_str)))
+            
+            # 處理單價
+            price_str = str(unit_price).strip()
+            price_num = float(price_str)
+            
+            return qty_num * price_num
+        except (ValueError, TypeError):
+            return 0.0
+
     def prepare_invoice_data(self, invoice_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         準備請款單資料
@@ -105,8 +123,23 @@ class HTMLPDFGenerator:
         Returns:
             處理後的請款單資料
         """
+        # 處理品項資料，自動計算金額
+        processed_items = []
+        for item in invoice_data.get("items", []):
+            processed_item = item.copy()
+            
+            # 如果金額為空，自動計算
+            if not processed_item.get("amount") or processed_item.get("amount") == "":
+                calculated_amount = self.calculate_item_amount(
+                    processed_item.get("quantity", ""),
+                    processed_item.get("unit_price", "")
+                )
+                processed_item["amount"] = str(int(calculated_amount)) if calculated_amount > 0 else ""
+            
+            processed_items.append(processed_item)
+
         # 計算總金額
-        totals = self.calculate_totals(invoice_data.get("items", []))
+        totals = self.calculate_totals(processed_items)
 
         # 準備完整的請款單資料
         prepared_data = {
@@ -117,9 +150,7 @@ class HTMLPDFGenerator:
             "tax_id": invoice_data.get("tax_id", ""),
             "invoice_type": invoice_data.get("invoice_type", ""),
             "notes": invoice_data.get("notes", ""),
-            "item_list": invoice_data.get(
-                "items", []
-            ),  # 使用 item_list 避免與 Jinja2 內建函數衝突
+            "item_list": processed_items,  # 使用處理後的品項資料
             "totals": {
                 "subtotal": self.format_currency(totals["subtotal"]),
                 "tax": self.format_currency(totals["tax"]),
@@ -175,10 +206,17 @@ class HTMLPDFGenerator:
             if os.path.exists(css_path):
                 css_doc = CSS(filename=css_path, font_config=self.font_config)
                 html_doc.write_pdf(
-                    output_path, stylesheets=[css_doc], font_config=self.font_config
+                    output_path, 
+                    stylesheets=[css_doc], 
+                    font_config=self.font_config,
+                    optimize_images=True
                 )
             else:
-                html_doc.write_pdf(output_path, font_config=self.font_config)
+                html_doc.write_pdf(
+                    output_path, 
+                    font_config=self.font_config,
+                    optimize_images=True
+                )
 
             print(f"✓ PDF 已生成：{output_path}")
 

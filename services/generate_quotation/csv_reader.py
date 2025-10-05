@@ -36,8 +36,9 @@ class CSVReader:
                     "customer_name": row.get("客戶名稱", ""),
                     "contact_person": row.get("聯絡人", ""),
                     "phone": row.get("電話", ""),
-                    "invoice_number": row.get("發票號碼", ""),
                     "tax_id": row.get("客戶統編", ""),
+                    "invoice_number": row.get("發票號碼", ""),
+                    "invoice_date": row.get("發票日期", ""),
                     "invoice_type": row.get("發票", ""),
                     "notes": row.get("備註", ""),
                     "items": [],
@@ -49,16 +50,13 @@ class CSVReader:
                     if i == 1:
                         quantity_key = "數量"
                         unit_price_key = "單價"
-                        amount_key = "金額"
                     else:
                         quantity_key = f"數量{i}"
                         unit_price_key = f"單價{i}"
-                        amount_key = f"金額{i}"
 
                     item_name = (row.get(item_name_key, "") or "").strip()
                     quantity = (row.get(quantity_key, "") or "").strip()
                     unit_price = (row.get(unit_price_key, "") or "").strip()
-                    amount = (row.get(amount_key, "") or "").strip()
 
                     # 如果品項名稱不為空，則加入品項
                     if item_name:
@@ -67,7 +65,7 @@ class CSVReader:
                                 "name": item_name,
                                 "quantity": quantity,
                                 "unit_price": unit_price,
-                                "amount": amount,
+                                "amount": "",  # 金額將由 PDF 生成器自動計算
                             }
                         )
 
@@ -95,14 +93,14 @@ class CSVReader:
                     "客戶名稱",
                     "聯絡人",
                     "電話",
-                    "發票號碼",
                     "客戶統編",
+                    "發票號碼",
+                    "發票日期",
                     "發票",
                     "備註",
                     "品項1",
                     "數量",
                     "單價",
-                    "金額",
                 ]
 
                 for field in required_fields:

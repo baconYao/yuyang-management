@@ -5,8 +5,8 @@
 }
 
 body {
-  font-family: "PingFang TC", "Microsoft JhengHei", "Helvetica Neue", Arial,
-    sans-serif;
+  font-family: "Helvetica Neue", Arial, "Noto Sans CJK TC", "Microsoft JhengHei",
+    "PingFang TC", sans-serif;
   font-size: 12px;
   line-height: 1.4;
   color: #333;
