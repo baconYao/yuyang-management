@@ -36,9 +36,10 @@ class CSVReader:
                     "customer_name": row.get("客戶名稱", ""),
                     "contact_person": row.get("聯絡人", ""),
                     "phone": row.get("電話", ""),
+                    "invoice_title": row.get("發票抬頭", ""),
                     "tax_id": row.get("客戶統編", ""),
                     "invoice_number": row.get("發票號碼", ""),
-                    "invoice_date": row.get("發票日期", ""),
+                    "invoice_issue_date": row.get("發票日期", ""),
                     "invoice_type": row.get("發票", ""),
                     "notes": row.get("備註", ""),
                     "items": [],
@@ -47,12 +48,9 @@ class CSVReader:
                 # 處理品項資料（最多4個品項）
                 for i in range(1, 5):
                     item_name_key = f"品項{i}"
-                    if i == 1:
-                        quantity_key = "數量"
-                        unit_price_key = "單價"
-                    else:
-                        quantity_key = f"數量{i}"
-                        unit_price_key = f"單價{i}"
+                    # 新版欄位以 數量{i} / 單價{i} 命名（包含第1筆）
+                    quantity_key = f"數量{i}"
+                    unit_price_key = f"單價{i}"
 
                     item_name = (row.get(item_name_key, "") or "").strip()
                     quantity = (row.get(quantity_key, "") or "").strip()
@@ -88,19 +86,13 @@ class CSVReader:
                 reader = csv.DictReader(file)
                 headers = reader.fieldnames
 
-                # 檢查必要的欄位
+                # 針對新版 CSV 的必要欄位（其餘欄位視為可選）
                 required_fields = [
                     "客戶名稱",
-                    "聯絡人",
-                    "電話",
-                    "客戶統編",
-                    "發票號碼",
-                    "發票日期",
                     "發票",
-                    "備註",
                     "品項1",
-                    "數量",
-                    "單價",
+                    "數量1",
+                    "單價1",
                 ]
 
                 for field in required_fields:

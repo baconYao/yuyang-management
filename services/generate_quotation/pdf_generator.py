@@ -13,6 +13,7 @@ from typing import Any, Dict, List
 from jinja2 import Environment, FileSystemLoader
 from weasyprint import CSS, HTML
 from weasyprint.text.fonts import FontConfiguration
+import re
 
 
 class HTMLPDFGenerator:
@@ -89,13 +90,14 @@ class HTMLPDFGenerator:
                 continue
 
         # 根據發票種類決定是否計算稅金
-        if invoice_type == "無發票":
-            tax_amount = 0
-            total = subtotal
-        else:
+        # 只有「三聯」需計算 5% 營業稅；二聯與無發票不計稅
+        if invoice_type == "三聯":
             tax_rate = 0.05  # 營業稅 5%
             tax_amount = subtotal * tax_rate
             total = subtotal + tax_amount
+        else:
+            tax_amount = 0
+            total = subtotal
 
         return {"subtotal": subtotal, "tax": tax_amount, "total": total}
 
@@ -147,6 +149,13 @@ class HTMLPDFGenerator:
                 )
                 processed_item["amount"] = str(int(calculated_amount)) if calculated_amount > 0 else ""
             
+            # 顯示用數量：將「數字月」改為「數字個月」
+            qty_display = str(processed_item.get("quantity", ""))
+            m = re.fullmatch(r"\s*(\d+)\s*月\s*", qty_display)
+            if m:
+                qty_display = f"{m.group(1)}個月"
+            processed_item["display_quantity"] = qty_display
+            
             processed_items.append(processed_item)
 
         # 計算總金額（傳遞發票種類）
@@ -162,6 +171,7 @@ class HTMLPDFGenerator:
             "customer_name": invoice_data.get("customer_name", ""),
             "contact_person": invoice_data.get("contact_person", ""),
             "phone": invoice_data.get("phone", ""),
+            "invoice_title": invoice_data.get("invoice_title", ""),
             "invoice_number": invoice_data.get("invoice_number", ""),
             "invoice_date": invoice_date,  # 請款日期（系統生成）
             "invoice_issue_date": invoice_issue_date,  # 發票日期
@@ -174,6 +184,8 @@ class HTMLPDFGenerator:
                 "tax": self.format_currency(totals["tax"]),
                 "total": self.format_currency(totals["total"]),
             },
+            # 稅額說明：二聯顯示「已包含」
+            "tax_note": "已包含" if invoice_type == "二聯" else "",
         }
 
         return prepared_data

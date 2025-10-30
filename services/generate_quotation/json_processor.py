@@ -124,21 +124,23 @@ class JSONProcessor:
         Returns:
             結構是否正確
         """
+        # 新版資料：僅要求關鍵欄位，其餘視為可選
         required_fields = [
             "customer_name",
-            "contact_person",
-            "phone",
-            "tax_id",
-            "invoice_number",
-            "invoice_date",
             "invoice_type",
-            "notes",
             "items",
         ]
         
-        # 可選欄位（發票日期）
+        # 可選欄位（包含舊版/新版的對應欄位）
         optional_fields = [
+            "contact_person",
+            "phone",
+            "invoice_title",
+            "tax_id",
+            "invoice_number",
+            "invoice_date",
             "invoice_issue_date",
+            "notes",
         ]
 
         for field in required_fields:

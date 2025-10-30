@@ -30,7 +30,7 @@
             <td class="label">客戶名稱</td>
             <td class="value">{{ invoice.customer_name }}</td>
             <td class="label">發票抬頭</td>
-            <td class="value" colspan="3">{{ invoice.customer_name }}</td>
+            <td class="value" colspan="3">{{ invoice.invoice_title }}</td>
           </tr>
           <tr>
             <td class="label">統一編號</td>
@@ -62,7 +62,7 @@
             {% for item in invoice.item_list %}
             <tr>
               <td class="item-name">{{ item.name }}</td>
-              <td class="quantity">{{ item.quantity }}</td>
+              <td class="quantity">{{ item.display_quantity }}</td>
               <td class="unit-price">{{ item.unit_price }}</td>
               <td class="amount">{{ item.amount }}</td>
             </tr>
@@ -103,8 +103,9 @@
             <td class="total-value">{{ invoice.totals.subtotal }}</td>
             <td class="total-label">營業稅 5%</td>
             <td class="total-value">
-              {% if invoice.invoice_type == "無發票" %} 未 {% else %} {{
-              invoice.totals.tax }} {% endif %}
+              {% if invoice.invoice_type == "三聯" %} {{ invoice.totals.tax }}
+              {% elif invoice.invoice_type == "二聯" %} 已包含 {% else %} 未 {%
+              endif %}
             </td>
             <td class="total-label final-total-label">總計</td>
             <td class="total-value final-total-value">
