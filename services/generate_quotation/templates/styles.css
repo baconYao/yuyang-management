@@ -119,8 +119,8 @@ body {
 }
 
 .items-table thead th {
-  background-color: #34495e;
-  color: white;
+  background-color: #fff;
+  color: black;
   font-weight: bold;
   font-size: 11px;
 }
@@ -209,6 +209,7 @@ body {
   width: 16.67%;
   font-size: 14px;
   padding: 12px 8px;
+  color: black;
 }
 
 .totals-table .final-total-label {
@@ -219,7 +220,7 @@ body {
 .totals-table .final-total-value {
   background-color: #fadbd8;
   font-size: 16px;
-  color: #e74c3c;
+  color: black;
 }
 
 /* 備註 */
