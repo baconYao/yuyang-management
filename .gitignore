@@ -241,11 +241,6 @@ config.ini
 secrets.json
 .secrets
 
-# Test files
-test_*.py
-*_test.py
-tests/
-
 # Documentation build
 docs/build/
 docs/_build/
