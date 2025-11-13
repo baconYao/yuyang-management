@@ -3,14 +3,7 @@ name: Backend Tests
 on:
   workflow_dispatch:
   push:
-    paths:
-      - "backend/**"
-      - ".github/workflows/backend_test.yml"
   pull_request:
-    branches:
-      - main
-    paths:
-      - "backend/**"
 
 jobs:
   test:
@@ -24,6 +17,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 #  Full checkout（avoid sparse checkout）
+
+      - name: Debug file tree
+        run: |
+          echo "=== WORKSPACE TREE ==="
+          ls -R .
 
       - name: Set up Python
         uses: actions/setup-python@v5
