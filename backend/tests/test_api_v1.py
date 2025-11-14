@@ -1,4 +1,3 @@
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -12,4 +11,3 @@ def test_hello_endpoint(client: TestClient):
     assert data["message"] == "Hello, World!"
     assert data["status"] == "success"
     assert data["version"] == "v1"
-

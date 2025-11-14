@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+
 from app.api.v1 import router as v1_router
 
 app = FastAPI(
@@ -9,6 +10,7 @@ app = FastAPI(
     docs_url=None,  # 禁用默認的 Swagger UI
     redoc_url=None,  # 禁用默認的 ReDoc
 )
+
 
 # 整合 Scalar API 文檔
 @app.get("/docs", include_in_schema=False)
@@ -45,6 +47,7 @@ async def scalar_html():
         status_code=200,
     )
 
+
 @app.get("/", include_in_schema=False)
 async def root():
     """
@@ -54,13 +57,14 @@ async def root():
         "message": "Welcome to Yuyang Management API",
         "version": "1.0.0",
         "docs": "/docs",
-        "api_versions": ["v1"]
+        "api_versions": ["v1"],
     }
+
 
 # 註冊 API 版本路由
 app.include_router(v1_router, prefix="/api/v1", tags=["v1"])
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
 
+    uvicorn.run(app, host="0.0.0.0", port=8000)

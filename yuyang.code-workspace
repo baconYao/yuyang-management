@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		// Python interprete
+		"python.defaultInterpreterPath": "backend/.venv/bin/python",
+	
+		// format with Ruff
+		"editor.defaultFormatter": "charliermarsh.ruff",
+		"editor.formatOnSave": true,
+		"[python]": {
+			"editor.defaultFormatter": "charliermarsh.ruff"
+		},
+			
+		// type checking
+		"mypy-type-checker.reportingScope": "workspace",
+	}
+  }
+  

@@ -1,6 +1,4 @@
-import pytest
 from fastapi.testclient import TestClient
-from app.main import app
 
 
 def test_root_endpoint(client: TestClient):
@@ -38,4 +36,3 @@ def test_openapi_schema(client: TestClient):
     assert data["info"]["title"] == "Yuyang Management API"
     assert data["info"]["version"] == "1.0.0"
     assert "/api/v1/hello" in data["paths"]
-
