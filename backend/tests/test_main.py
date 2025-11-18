@@ -35,4 +35,4 @@ def test_openapi_schema(client: TestClient):
     data = response.json()
     assert data["info"]["title"] == "Yuyang Management API"
     assert data["info"]["version"] == "1.0.0"
-    assert "/api/v1/hello" in data["paths"]
+    assert "/api/v1/customers/" in data["paths"]

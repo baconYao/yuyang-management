@@ -1,6 +1,6 @@
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CustomerType(str, Enum):
@@ -32,8 +32,7 @@ class CustomerRead(BaseCustomer):
 
     id: int | None = Field(None, description="Customer ID")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CustomerWrite(BaseCustomer):
