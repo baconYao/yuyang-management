@@ -39,10 +39,10 @@ class CustomerRead(BaseCustomer):
 class CustomerWrite(BaseCustomer):
     """Customer information write schema"""
 
-    customer_name: str = Field(..., description="Customer name", min_length=1)
+    pass
 
 
 class CustomerUpdate(BaseCustomer):
     """Customer information update schema"""
 
-    customer_name: str | None = Field(None, description="Customer name", min_length=1)  # noqa: E501
+    pass
