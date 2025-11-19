@@ -7,6 +7,8 @@ dependencies = [
     "fastapi>=0.109.0",
     "pydantic>=2.12.4",
     "uvicorn[standard]>=0.27.0",
+    "sqlalchemy==2.0.44",
+    "sqlmodel==0.0.27",
 ]
 
 [project.optional-dependencies]

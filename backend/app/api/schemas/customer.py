@@ -21,7 +21,9 @@ class BaseCustomer(BaseModel):
     invoice_title: str | None = Field(None, description="Invoice title")
     invoice_number: str | None = Field(None, description="Invoice number")
     contact_phone: str | None = Field(None, description="Contact phone number")
-    messaging_app: str | None = Field(None, description="Messaging app (Line, etc.)")  # noqa: E501
+    messaging_app_line: str | None = Field(
+        None, description="Messaging app (Line, etc.)"
+    )
     address: str | None = Field(None, description="Address")
     primary_contact: str | None = Field(None, description="Primary contact person")  # noqa: E501
     customer_type: CustomerType | None = Field(None, description="Customer type")  # noqa: E501
