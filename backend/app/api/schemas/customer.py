@@ -1,4 +1,5 @@
 from enum import Enum
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -32,7 +33,7 @@ class BaseCustomer(BaseModel):
 class CustomerRead(BaseCustomer):
     """Customer information read schema"""
 
-    id: int | None = Field(None, description="Customer ID")
+    id: UUID | None = Field(None, description="Customer ID")
 
     model_config = ConfigDict(from_attributes=True)
 

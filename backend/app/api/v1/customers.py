@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.dependencies import CustomerServiceDep
@@ -18,12 +20,12 @@ async def get_customers(service: CustomerServiceDep):
     Returns:
         List of all customers
     """
-    customers = service.get_all()
+    customers = await service.get_all()
     return customers
 
 
 @router.get("/{customer_id}", response_model=CustomerRead)
-async def get_customer_by_id(customer_id: int, service: CustomerServiceDep):
+async def get_customer_by_id(customer_id: UUID, service: CustomerServiceDep):
     """
     Get a customer by ID
 
@@ -36,7 +38,7 @@ async def get_customer_by_id(customer_id: int, service: CustomerServiceDep):
     Raises:
         HTTPException: If customer not found
     """
-    customer = service.get_by_id(customer_id)
+    customer = await service.get_by_id(customer_id)
     if customer is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -60,7 +62,7 @@ async def create_customer(customer: CustomerWrite, service: CustomerServiceDep):
     Returns:
         Created customer with assigned ID
     """
-    created_customer = service.create(customer)
+    created_customer = await service.create(customer)
     return created_customer
 
 

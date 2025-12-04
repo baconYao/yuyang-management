@@ -1,54 +1,20 @@
-from app.api.schemas.customer import CustomerRead, CustomerType, CustomerWrite
+from uuid import UUID
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
+
+from app.api.schemas.customer import CustomerRead, CustomerWrite
+from app.database.models.customer import Customer
 
 
 class CustomerService:
-    """Customer service for managing customer data in memory"""
+    """Customer service for managing customer data in database"""
 
-    def __init__(self):
-        """Initialize the service with in-memory storage"""
-        self._customers: dict[int, CustomerRead] = {}
-        self._next_id: int = 1
-        self._initialize_sample_data()
+    def __init__(self, session: AsyncSession):
+        """Initialize the service with database session"""
+        self._session = session
 
-    def _initialize_sample_data(self):
-        """Initialize with sample customer data"""
-        sample_customers = [
-            CustomerWrite(
-                customer_name="遠雄建設股份有限公司",
-                invoice_title="遠雄建設股份有限公司",
-                invoice_number="INV-2024-001",
-                contact_phone="02-2345-6789",
-                messaging_app_line="Line",
-                address="台北市信義區信義路五段7號",
-                primary_contact="王小明",
-                customer_type=CustomerType.REAL_ESTATE,
-            ),
-            CustomerWrite(
-                customer_name="台北市立第一小學",
-                invoice_title="台北市立第一小學",
-                invoice_number="INV-2024-002",
-                contact_phone="02-1234-5678",
-                messaging_app_line="Line",
-                address="台北市大安區和平東路一段123號",
-                primary_contact="李美華",
-                customer_type=CustomerType.EDUCATION,
-            ),
-            CustomerWrite(
-                customer_name="科技新創有限公司",
-                invoice_title="科技新創有限公司",
-                invoice_number="INV-2024-003",
-                contact_phone="02-9876-5432",
-                messaging_app_line="Line",
-                address="新北市板橋區文化路一段188巷7號",
-                primary_contact="張三",
-                customer_type=CustomerType.COMPANY,
-            ),
-        ]
-
-        for customer in sample_customers:
-            self.create(customer)
-
-    def get_by_id(self, customer_id: int) -> CustomerRead | None:
+    async def get_by_id(self, customer_id: UUID) -> CustomerRead | None:
         """
         Get a customer by ID
 
@@ -58,18 +24,30 @@ class CustomerService:
         Returns:
             CustomerRead if found, None otherwise
         """
-        return self._customers.get(customer_id)
+        # Validate customer_id before querying database
+        if customer_id is None:
+            return None
 
-    def get_all(self) -> list[CustomerRead]:
+        statement = select(Customer).where(Customer.id == customer_id)
+        result = await self._session.execute(statement)
+        db_customer = result.scalar_one_or_none()
+        if db_customer is None:
+            return None
+        return CustomerRead.model_validate(db_customer)
+
+    async def get_all(self) -> list[CustomerRead]:
         """
         Get all customers
 
         Returns:
             List of all customers
         """
-        return list(self._customers.values())
+        statement = select(Customer)
+        result = await self._session.execute(statement)
+        db_customers = result.scalars().all()
+        return [CustomerRead.model_validate(customer) for customer in db_customers]  # noqa: E501
 
-    def create(self, customer: CustomerWrite) -> CustomerRead:
+    async def create(self, customer: CustomerWrite) -> CustomerRead | None:
         """
         Create a new customer
 
@@ -79,11 +57,11 @@ class CustomerService:
         Returns:
             Created customer with assigned ID
         """
-        customer_id = self._next_id
-        self._next_id += 1
+        if customer is None:
+            return None
 
-        customer_read = CustomerRead(
-            id=customer_id,
+        # Create database model instance
+        db_customer = Customer(
             customer_name=customer.customer_name,
             invoice_title=customer.invoice_title,
             invoice_number=customer.invoice_number,
@@ -94,5 +72,10 @@ class CustomerService:
             customer_type=customer.customer_type,
         )
 
-        self._customers[customer_id] = customer_read
-        return customer_read
+        # Add to session and commit
+        self._session.add(db_customer)
+        await self._session.commit()
+        await self._session.refresh(db_customer)
+
+        # Convert to read schema
+        return CustomerRead.model_validate(db_customer)
