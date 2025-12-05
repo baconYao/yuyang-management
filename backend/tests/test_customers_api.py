@@ -191,3 +191,78 @@ async def test_get_customer_by_id_invalid_uuid(client: AsyncClient):
     assert response.status_code == 422
     error_detail = response.json()
     assert "detail" in error_detail
+
+
+@pytest.mark.asyncio
+async def test_delete_customer_not_found(client: AsyncClient, test_session):
+    """
+    Test DELETE /api/v1/customers/{customer_id} returns 404
+    when customer not found
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+    # Try to delete non-existent customer
+    non_existent_id = str(uuid4())
+    response = await client.delete(f"/api/v1/customers/{non_existent_id}")
+    assert response.status_code == 404
+    error_detail = response.json()
+    assert "detail" in error_detail
+    assert non_existent_id in error_detail["detail"]
+    assert "not found" in error_detail["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_delete_customer_success(client: AsyncClient, test_session):
+    """
+    Test DELETE /api/v1/customers/{customer_id} successfully deletes
+    an existing customer
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+    # Create test customer directly in test database
+    test_customer = Customer(
+        customer_name="Customer to Delete",
+        invoice_title="Delete Invoice Title",
+        invoice_number="DEL001",
+        contact_phone="0944444444",
+        messaging_app_line="del_test_line",
+        address="Delete Test Address",
+        primary_contact="Delete Contact",
+        customer_type=CustomerType.COMPANY,
+    )
+    test_session.add(test_customer)
+    await test_session.commit()
+    await test_session.refresh(test_customer)
+
+    customer_id = str(test_customer.id)
+
+    # Verify customer exists before deletion
+    result = await test_session.execute(
+        select(Customer).where(
+            Customer.id == test_customer.id  # type: ignore[arg-type]
+        )
+    )
+    db_customer_before = result.scalar_one_or_none()
+    assert db_customer_before is not None
+    assert db_customer_before.customer_name == "Customer to Delete"
+
+    # Delete customer via API
+    response = await client.delete(f"/api/v1/customers/{customer_id}")
+    assert response.status_code == 204
+
+    # Verify customer no longer exists in database
+    result = await test_session.execute(
+        select(Customer).where(
+            Customer.id == test_customer.id  # type: ignore[arg-type]
+        )
+    )
+    db_customer_after = result.scalar_one_or_none()
+    assert db_customer_after is None
+
+    # Cleanup (should be empty already, but just in case)
+    await test_session.execute(delete(Customer))
+    await test_session.commit()

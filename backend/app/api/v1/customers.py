@@ -71,6 +71,20 @@ async def update_customer(customer: CustomerUpdate):
     return {"customer": customer}
 
 
-@router.delete("/")
-async def delete_customer(id: int) -> dict[str, str]:
-    return {"status": "try"}
+@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_customer(customer_id: UUID, service: CustomerServiceDep):
+    """
+    Delete a customer by ID
+
+    Args:
+        customer_id: The ID of the customer to delete
+
+    Raises:
+        HTTPException: If customer not found
+    """
+    deleted = await service.delete(customer_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Customer with ID {customer_id} not found",
+        )
