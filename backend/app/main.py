@@ -1,7 +1,17 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
 from app.api.v1 import router as v1_router
+from app.database.session import create_db_tables
+
+
+@asynccontextmanager
+async def lifespan_handler(app: FastAPI):
+    await create_db_tables()
+    yield
+
 
 app = FastAPI(
     title="Yuyang Management API",
@@ -9,6 +19,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url=None,  # 禁用默認的 Swagger UI
     redoc_url=None,  # 禁用默認的 ReDoc
+    lifespan=lifespan_handler,
 )
 
 

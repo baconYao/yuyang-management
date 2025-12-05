@@ -1,11 +1,13 @@
-from fastapi.testclient import TestClient
+import pytest
+from httpx import AsyncClient
 
 
-def test_root_endpoint(client: TestClient):
+@pytest.mark.asyncio
+async def test_root_endpoint(client: AsyncClient):
     """
     測試根路徑端點
     """
-    response = client.get("/")
+    response = await client.get("/")
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "Welcome to Yuyang Management API"
@@ -15,22 +17,24 @@ def test_root_endpoint(client: TestClient):
     assert "v1" in data["api_versions"]
 
 
-def test_docs_endpoint(client: TestClient):
+@pytest.mark.asyncio
+async def test_docs_endpoint(client: AsyncClient):
     """
     測試 Scalar 文檔端點
     """
-    response = client.get("/docs")
+    response = await client.get("/docs")
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/html; charset=utf-8"
     assert "Scalar API Reference" in response.text
     assert "api-reference" in response.text
 
 
-def test_openapi_schema(client: TestClient):
+@pytest.mark.asyncio
+async def test_openapi_schema(client: AsyncClient):
     """
     測試 OpenAPI Schema 端點
     """
-    response = client.get("/openapi.json")
+    response = await client.get("/openapi.json")
     assert response.status_code == 200
     data = response.json()
     assert data["info"]["title"] == "Yuyang Management API"

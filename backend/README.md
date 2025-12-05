@@ -146,6 +146,72 @@ pytest tests/test_api_v1.py
 pytest --cov=app --cov-report=html
 ```
 
+## 資料庫遷移
+
+本專案使用 Alembic 進行資料庫版本控制和遷移管理。
+
+### 環境配置
+
+在執行資料庫遷移前，請確保已設定好 `.env` 檔案。在 `backend` 目錄下建立 `.env` 檔案，並設定以下資料庫連線資訊 (範例，記得要和 docker-compose 裡面的 DB 設定相同)：
+
+```env
+POSTGRES_SERVER=localhost
+POSTGRES_PORT=5432
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=test_db
+```
+
+**注意**：
+- `.env` 檔案應放在 `backend` 目錄下
+- 請根據實際的資料庫環境調整上述配置值
+- 建議將 `.env` 加入 `.gitignore`，避免將敏感資訊提交到版本控制系統
+
+### 建立遷移檔案
+
+當你修改了資料庫模型（在 `app/database/models/` 目錄下的模型檔案）後，需要建立新的遷移檔案：
+
+```bash
+alembic revision --autogenerate -m "描述你的變更"
+```
+
+**重要提醒**：
+- 使用 `--autogenerate` 參數時，Alembic 會自動偵測模型變更並生成遷移腳本
+- 請務必在執行此命令前，確保所有模型都已正確匯入到 `migrations/env.py` 中
+- 生成遷移檔案後，請仔細檢查 `migrations/versions/` 目錄下的遷移腳本，確認變更正確無誤
+
+### 應用遷移
+
+將遷移應用到資料庫：
+
+```bash
+alembic upgrade head
+```
+
+此命令會將資料庫升級到最新的遷移版本（head）。
+
+### 其他常用命令
+
+- 查看當前資料庫版本：
+  ```bash
+  alembic current
+  ```
+
+- 查看遷移歷史：
+  ```bash
+  alembic history
+  ```
+
+- 降級到上一個版本：
+  ```bash
+  alembic downgrade -1
+  ```
+
+- 降級到特定版本：
+  ```bash
+  alembic downgrade <revision_id>
+  ```
+
 ## 開發說明
 
 ### 專案結構說明

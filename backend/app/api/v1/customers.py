@@ -1,25 +1,113 @@
-from fastapi import APIRouter
+from uuid import UUID
 
-from app.api.schemas.customer import CustomerUpdate, CustomerWrite
+from fastapi import APIRouter, HTTPException, status
+
+from app.api.dependencies import CustomerServiceDep
+from app.api.schemas.customer import (
+    CustomerRead,
+    CustomerUpdate,
+    CustomerWrite,
+)
 
 router = APIRouter(prefix="/customers", tags=["Customers"])
 
 
-@router.get("/")
-async def get_customers():
-    return {"customers": []}
+@router.get("/", response_model=list[CustomerRead])
+async def get_customers(service: CustomerServiceDep):
+    """
+    Get all customers
+
+    Returns:
+        List of all customers
+    """
+    customers = await service.get_all()
+    return customers
 
 
-@router.post("/")
-async def create_customer(customer: CustomerWrite):
-    return {"customer": customer}
+@router.get("/{customer_id}", response_model=CustomerRead)
+async def get_customer_by_id(customer_id: UUID, service: CustomerServiceDep):
+    """
+    Get a customer by ID
+
+    Args:
+        customer_id: The ID of the customer to retrieve
+
+    Returns:
+        Customer information
+
+    Raises:
+        HTTPException: If customer not found
+    """
+    customer = await service.get_by_id(customer_id)
+    if customer is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Customer with ID {customer_id} not found",
+        )
+    return customer
 
 
-@router.patch("/")
-async def update_customer(customer: CustomerUpdate):
-    return {"customer": customer}
+@router.post(
+    "/",
+    response_model=CustomerRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_customer(customer: CustomerWrite, service: CustomerServiceDep):  # noqa: E501
+    """
+    Create a new customer
+
+    Args:
+        customer: Customer data to create
+
+    Returns:
+        Created customer with assigned ID
+    """
+    created_customer = await service.create(customer)
+    return created_customer
 
 
-@router.delete("/")
-async def delete_customer(id: int) -> dict[str, str]:
-    return {"status": "try"}
+@router.patch("/{customer_id}", response_model=CustomerRead)
+async def update_customer(
+    customer_id: UUID,
+    customer: CustomerUpdate,
+    service: CustomerServiceDep,
+):
+    """
+    Update a customer by ID
+
+    Args:
+        customer_id: The ID of the customer to update
+        customer: Customer data to update (partial update supported)
+
+    Returns:
+        Updated customer information
+
+    Raises:
+        HTTPException: If customer not found
+    """
+    updated_customer = await service.update(customer_id, customer)
+    if updated_customer is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Customer with ID {customer_id} not found",
+        )
+    return updated_customer
+
+
+@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_customer(customer_id: UUID, service: CustomerServiceDep):
+    """
+    Delete a customer by ID
+
+    Args:
+        customer_id: The ID of the customer to delete
+
+    Raises:
+        HTTPException: If customer not found
+    """
+    deleted = await service.delete(customer_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Customer with ID {customer_id} not found",
+        )
