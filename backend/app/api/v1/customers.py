@@ -66,9 +66,32 @@ async def create_customer(customer: CustomerWrite, service: CustomerServiceDep):
     return created_customer
 
 
-@router.patch("/")
-async def update_customer(customer: CustomerUpdate):
-    return {"customer": customer}
+@router.patch("/{customer_id}", response_model=CustomerRead)
+async def update_customer(
+    customer_id: UUID,
+    customer: CustomerUpdate,
+    service: CustomerServiceDep,
+):
+    """
+    Update a customer by ID
+
+    Args:
+        customer_id: The ID of the customer to update
+        customer: Customer data to update (partial update supported)
+
+    Returns:
+        Updated customer information
+
+    Raises:
+        HTTPException: If customer not found
+    """
+    updated_customer = await service.update(customer_id, customer)
+    if updated_customer is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Customer with ID {customer_id} not found",
+        )
+    return updated_customer
 
 
 @router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)

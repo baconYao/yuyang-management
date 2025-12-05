@@ -4,7 +4,11 @@ from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.api.schemas.customer import CustomerRead, CustomerWrite
+from app.api.schemas.customer import (  # noqa: E501
+    CustomerRead,
+    CustomerUpdate,
+    CustomerWrite,
+)
 from app.database.models.customer import Customer
 
 
@@ -109,3 +113,40 @@ class CustomerService:
         await self._session.execute(delete_statement)
         await self._session.commit()
         return True
+
+    async def update(
+        self, customer_id: UUID, customer_update: CustomerUpdate
+    ) -> CustomerRead | None:
+        """
+        Update a customer by ID
+
+        Args:
+            customer_id: The ID of the customer to update
+            customer_update: Customer data to update (partial update supported)
+
+        Returns:
+            CustomerRead if customer was updated, None if customer not found
+        """
+        # Validate customer_id before querying database
+        if customer_id is None:
+            return None
+
+        # Get customer first to check if it exists
+        statement = select(Customer).where(Customer.id == customer_id)
+        result = await self._session.execute(statement)
+        db_customer = result.scalar_one_or_none()
+        if db_customer is None:
+            return None
+
+        # Update only provided fields
+        update_data = customer_update.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            if value is not None:
+                setattr(db_customer, field, value)
+
+        # Commit the changes
+        await self._session.commit()
+        await self._session.refresh(db_customer)
+
+        # Convert to read schema
+        return CustomerRead.model_validate(db_customer)
