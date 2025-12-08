@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_session
 from app.services.customer_service import CustomerService
+from app.services.user_service import UserService
 
 # Asynchronous database session dep annotation
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
@@ -24,8 +25,26 @@ def get_customer_service(session: SessionDep) -> CustomerService:
     return CustomerService(session)
 
 
+def get_user_service(session: SessionDep) -> UserService:
+    """
+    Get UserService instance with database session
+
+    Args:
+        session: Database session
+
+    Returns:
+        UserService instance
+    """
+    return UserService(session)
+
+
 # Customer service dep annotation
 CustomerServiceDep = Annotated[
     CustomerService,
     Depends(get_customer_service),
+]
+
+UserServiceDep = Annotated[
+    UserService,
+    Depends(get_user_service),
 ]
