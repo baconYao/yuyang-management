@@ -1,3 +1,4 @@
+# flake8: noqa: E501
 """${message}
 
 Revision ID: ${up_revision}
@@ -8,6 +9,7 @@ Create Date: ${create_date}
 from typing import Sequence, Union
 
 from alembic import op
+import sqlmodel
 import sqlalchemy as sa
 ${imports if imports else ""}
 

@@ -1,9 +1,9 @@
 # flake8: noqa: E501
 """init
 
-Revision ID: 318ec9f22ed3
+Revision ID: 3dc91ae6a2ad
 Revises:
-Create Date: 2025-12-05 11:15:02.074378
+Create Date: 2025-12-24 11:06:56.385530
 
 """
 
@@ -15,7 +15,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "318ec9f22ed3"
+revision: str = "3dc91ae6a2ad"
 down_revision: str | Sequence[str] | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -61,16 +61,19 @@ def upgrade() -> None:
         sa.Column("created_at", postgresql.TIMESTAMP(), nullable=True),
         sa.Column("updated_at", postgresql.TIMESTAMP(), nullable=True),
         sa.Column("name", sa.String(length=4), nullable=False),
-        sa.Column("email", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+        sa.Column("email", sa.String(), nullable=False),
         sa.Column(
             "user_type", sa.Enum("ADMIN", "NORMAL", name="usertype"), nullable=False
         ),
-        sa.Column("contact_phone", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+        sa.Column("contact_phone", sa.String(), nullable=False),
         sa.Column(
             "messaging_app_line", sqlmodel.sql.sqltypes.AutoString(), nullable=False
         ),
         sa.Column("address", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+        sa.Column("password_hash", sa.String(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("contact_phone"),
+        sa.UniqueConstraint("email"),
     )
     # ### end Alembic commands ###
 

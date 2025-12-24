@@ -36,8 +36,16 @@ class User(SQLModel, table=True):
         sa_column=Column(String(4), nullable=False),
         description="User name (max 4 traditional Chinese characters)",
     )
-    email: str
+    email: str = Field(
+        sa_column=Column(String, nullable=False, unique=True),
+    )
     user_type: UserType
-    contact_phone: str
+    contact_phone: str = Field(
+        sa_column=Column(String, nullable=False, unique=True),
+    )
     messaging_app_line: str
     address: str
+    password_hash: str = Field(
+        sa_column=Column(String, nullable=False),
+        description="Hashed password",
+    )

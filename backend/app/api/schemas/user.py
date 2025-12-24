@@ -1,7 +1,9 @@
 from enum import Enum
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+from app.core.security import validate_password
 
 
 class UserType(str, Enum):
@@ -34,10 +36,17 @@ class UserRead(BaseUser):
     model_config = ConfigDict(from_attributes=True)
 
 
-class UserWrite(BaseUser):
+class UserCreate(BaseUser):
     """User information write schema"""
 
-    pass
+    password: str = Field(..., description="User password")
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_field(cls, v: str) -> str:
+        """Validate password using security module"""
+        validate_password(v)
+        return v
 
 
 class UserUpdate(BaseModel):

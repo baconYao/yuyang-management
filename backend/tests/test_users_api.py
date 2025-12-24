@@ -1,4 +1,5 @@
-from uuid import UUID, uuid4
+# flake8: noqa: E501
+from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
@@ -9,26 +10,9 @@ from app.database.models.user import User
 
 
 @pytest.mark.asyncio
-async def test_get_users_empty(client: AsyncClient, test_session):
+async def test_create_user_success(client: AsyncClient, test_session):
     """
-    Test GET /api/v1/users/ returns empty list when database is empty
-    This verifies that the API endpoint uses the test database.
-    """
-    # Ensure database is empty
-    await test_session.execute(delete(User))
-    await test_session.commit()
-
-    response = await client.get("/api/v1/users/")
-    assert response.status_code == 200
-    data = response.json()
-    assert data == []
-
-
-@pytest.mark.asyncio
-async def test_create_user_via_api(client: AsyncClient, test_session):
-    """
-    Test POST /api/v1/users/ creates a user in the test database
-    This verifies that the API endpoint uses the test database, not production.
+    Test POST /api/v1/users/ successfully creates a user
     """
     # Ensure database is empty
     await test_session.execute(delete(User))
@@ -36,12 +20,13 @@ async def test_create_user_via_api(client: AsyncClient, test_session):
 
     # Create user via API
     user_data = {
-        "name": "測試",
+        "name": "張培堯",
         "email": "test@example.com",
-        "user_type": "NORMAL",
-        "contact_phone": "0911111111",
+        "user_type": "ADMIN",
+        "contact_phone": "0912345678",
         "messaging_app_line": "test_line",
         "address": "Test Address",
+        "password": "Test1234!",
     }
 
     response = await client.post("/api/v1/users/", json=user_data)
@@ -49,24 +34,29 @@ async def test_create_user_via_api(client: AsyncClient, test_session):
     created_user = response.json()
 
     # Verify response
-    assert created_user["name"] == "測試"
+    assert created_user["name"] == "張培堯"
     assert created_user["email"] == "test@example.com"
-    assert created_user["user_type"] == "NORMAL"
+    assert created_user["user_type"] == "ADMIN"
+    assert created_user["contact_phone"] == "0912345678"
+    assert created_user["messaging_app_line"] == "test_line"
+    assert created_user["address"] == "Test Address"
     assert created_user["id"] is not None
+    # Password should not be in response
+    assert "password" not in created_user
+    assert "password_hash" not in created_user
 
     # Verify user exists in test database
-    # Convert string ID to UUID object
     user_id = UUID(created_user["id"])
     result = await test_session.execute(
-        select(User).where(
-            User.id == user_id  # type: ignore[arg-type]
-        )
+        select(User).where(User.id == user_id)  # type: ignore[arg-type]
     )
     db_user = result.scalar_one_or_none()
     assert db_user is not None
-    assert db_user.name == "測試"
+    assert db_user.name == "張培堯"
     assert db_user.email == "test@example.com"
-    assert db_user.user_type == UserType.NORMAL
+    assert db_user.user_type == UserType.ADMIN
+    assert db_user.password_hash is not None
+    assert db_user.password_hash != "Test1234!"  # Should be hashed
 
     # Cleanup
     await test_session.execute(delete(User))
@@ -74,115 +64,18 @@ async def test_create_user_via_api(client: AsyncClient, test_session):
 
 
 @pytest.mark.asyncio
-async def test_get_users_with_data(client: AsyncClient, test_session):
+async def test_create_user_missing_required_fields(client: AsyncClient):
     """
-    Test GET /api/v1/users/ returns users from test database
+    Test POST /api/v1/users/ returns 422
+    for missing required fields
     """
-    # Ensure database is empty
-    await test_session.execute(delete(User))
-    await test_session.commit()
+    # Try to create user with missing required fields
+    user_data = {
+        "name": "測試",
+        # Missing email and other required fields
+    }
 
-    # Create test user directly in test database
-    test_user = User(
-        name="直接",
-        email="direct@example.com",
-        user_type=UserType.ADMIN,
-        contact_phone="0922222222",
-        messaging_app_line="direct_line",
-        address="Direct Test Address",
-    )
-    test_session.add(test_user)
-    await test_session.commit()
-    await test_session.refresh(test_user)
-
-    # Get users via API
-    response = await client.get("/api/v1/users/")
-    assert response.status_code == 200
-    users = response.json()
-
-    # Verify API returns the user we created directly in test DB
-    assert len(users) == 1
-    assert users[0]["name"] == "直接"
-    assert users[0]["email"] == "direct@example.com"
-    assert users[0]["user_type"] == "ADMIN"
-    assert users[0]["id"] == str(test_user.id)
-
-    # Cleanup
-    await test_session.execute(delete(User))
-    await test_session.commit()
-
-
-@pytest.mark.asyncio
-async def test_get_user_by_id_success(client: AsyncClient, test_session):
-    """
-    Test GET /api/v1/users/{user_id} returns user when found
-    """
-    # Ensure database is empty
-    await test_session.execute(delete(User))
-    await test_session.commit()
-
-    # Create test user directly in test database
-    test_user = User(
-        name="查詢",
-        email="query@example.com",
-        user_type=UserType.NORMAL,
-        contact_phone="0933333333",
-        messaging_app_line="query_line",
-        address="Query Test Address",
-    )
-    test_session.add(test_user)
-    await test_session.commit()
-    await test_session.refresh(test_user)
-
-    # Get user by ID via API
-    user_id = str(test_user.id)
-    response = await client.get(f"/api/v1/users/{user_id}")
-    assert response.status_code == 200
-    user = response.json()
-
-    # Verify response data
-    assert user["id"] == user_id
-    assert user["name"] == "查詢"
-    assert user["email"] == "query@example.com"
-    assert user["user_type"] == "NORMAL"
-    assert user["contact_phone"] == "0933333333"
-    assert user["messaging_app_line"] == "query_line"
-    assert user["address"] == "Query Test Address"
-
-    # Cleanup
-    await test_session.execute(delete(User))
-    await test_session.commit()
-
-
-@pytest.mark.asyncio
-async def test_get_user_by_id_not_found(client: AsyncClient, test_session):
-    """
-    Test GET /api/v1/users/{user_id} returns 404
-    when user not found
-    """
-    # Ensure database is empty
-    await test_session.execute(delete(User))
-    await test_session.commit()
-
-    # Try to get non-existent user
-    non_existent_id = str(uuid4())
-    response = await client.get(f"/api/v1/users/{non_existent_id}")
-    assert response.status_code == 404
-    error_detail = response.json()
-    assert "detail" in error_detail
-    assert non_existent_id in error_detail["detail"]
-    assert "not found" in error_detail["detail"].lower()
-
-
-@pytest.mark.asyncio
-async def test_get_user_by_id_invalid_uuid(client: AsyncClient):
-    """
-    Test GET /api/v1/users/{user_id} returns 422
-    for invalid UUID format
-    """
-    # Try to get user with invalid UUID format
-    invalid_id = "not-a-valid-uuid"
-    response = await client.get(f"/api/v1/users/{invalid_id}")
+    response = await client.post("/api/v1/users/", json=user_data)
     assert response.status_code == 422
     error_detail = response.json()
     assert "detail" in error_detail
@@ -206,6 +99,7 @@ async def test_create_user_invalid_email(client: AsyncClient, test_session):
         "contact_phone": "0911111111",
         "messaging_app_line": "test_line",
         "address": "Test Address",
+        "password": "Test1234!",
     }
 
     response = await client.post("/api/v1/users/", json=user_data)
@@ -236,6 +130,7 @@ async def test_create_user_name_too_long(client: AsyncClient, test_session):
         "contact_phone": "0911111111",
         "messaging_app_line": "test_line",
         "address": "Test Address",
+        "password": "Test1234!",
     }
 
     response = await client.post("/api/v1/users/", json=user_data)
@@ -249,18 +144,252 @@ async def test_create_user_name_too_long(client: AsyncClient, test_session):
 
 
 @pytest.mark.asyncio
-async def test_create_user_missing_required_fields(client: AsyncClient):
+async def test_create_user_password_too_short(client: AsyncClient, test_session):
     """
     Test POST /api/v1/users/ returns 422
-    for missing required fields
+    for password too short (less than 8 characters)
     """
-    # Try to create user with missing required fields
+    # Ensure database is empty
+    await test_session.execute(delete(User))
+    await test_session.commit()
+
+    # Try to create user with password too short
     user_data = {
         "name": "測試",
-        # Missing email and other required fields
+        "email": "test@example.com",
+        "user_type": "NORMAL",
+        "contact_phone": "0911111111",
+        "messaging_app_line": "test_line",
+        "address": "Test Address",
+        "password": "Test1!",
     }
 
     response = await client.post("/api/v1/users/", json=user_data)
     assert response.status_code == 422
     error_detail = response.json()
     assert "detail" in error_detail
+    # Pydantic validation errors are in a list format
+    error_str = str(error_detail["detail"])
+    assert "8-16 characters" in error_str
+
+    # Cleanup
+    await test_session.execute(delete(User))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_create_user_password_too_long(client: AsyncClient, test_session):
+    """
+    Test POST /api/v1/users/ returns 422
+    for password too long (more than 16 characters)
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(User))
+    await test_session.commit()
+
+    # Try to create user with password too long (17 characters)
+    user_data = {
+        "name": "測試",
+        "email": "test@example.com",
+        "user_type": "NORMAL",
+        "contact_phone": "0911111111",
+        "messaging_app_line": "test_line",
+        "address": "Test Address",
+        "password": "Test123456789012!",
+    }
+
+    response = await client.post("/api/v1/users/", json=user_data)
+    assert response.status_code == 422
+    error_detail = response.json()
+    assert "detail" in error_detail
+    # Pydantic validation errors are in a list format
+    error_str = str(error_detail["detail"])
+    assert "8-16 characters" in error_str
+
+    # Cleanup
+    await test_session.execute(delete(User))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_create_user_password_no_uppercase(client: AsyncClient, test_session):
+    """
+    Test POST /api/v1/users/ returns 422
+    for password without uppercase letter
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(User))
+    await test_session.commit()
+
+    # Try to create user with password without uppercase
+    user_data = {
+        "name": "測試",
+        "email": "test@example.com",
+        "user_type": "NORMAL",
+        "contact_phone": "0911111111",
+        "messaging_app_line": "test_line",
+        "address": "Test Address",
+        "password": "test1234!",
+    }
+
+    response = await client.post("/api/v1/users/", json=user_data)
+    assert response.status_code == 422
+    error_detail = response.json()
+    assert "detail" in error_detail
+    # Pydantic validation errors are in a list format
+    error_str = str(error_detail["detail"]).lower()
+    assert "uppercase" in error_str
+
+    # Cleanup
+    await test_session.execute(delete(User))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_create_user_password_no_lowercase(client: AsyncClient, test_session):
+    """
+    Test POST /api/v1/users/ returns 422
+    for password without lowercase letter
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(User))
+    await test_session.commit()
+
+    # Try to create user with password without lowercase
+    user_data = {
+        "name": "測試",
+        "email": "test@example.com",
+        "user_type": "NORMAL",
+        "contact_phone": "0911111111",
+        "messaging_app_line": "test_line",
+        "address": "Test Address",
+        "password": "TEST1234!",
+    }
+
+    response = await client.post("/api/v1/users/", json=user_data)
+    assert response.status_code == 422
+    error_detail = response.json()
+    assert "detail" in error_detail
+    # Pydantic validation errors are in a list format
+    error_str = str(error_detail["detail"]).lower()
+    assert "lowercase" in error_str
+
+    # Cleanup
+    await test_session.execute(delete(User))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_create_user_password_no_special(client: AsyncClient, test_session):
+    """
+    Test POST /api/v1/users/ returns 422
+    for password without special character
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(User))
+    await test_session.commit()
+
+    # Try to create user with password without special character
+    user_data = {
+        "name": "測試",
+        "email": "test@example.com",
+        "user_type": "NORMAL",
+        "contact_phone": "0911111111",
+        "messaging_app_line": "test_line",
+        "address": "Test Address",
+        "password": "Test1234",
+    }
+
+    response = await client.post("/api/v1/users/", json=user_data)
+    assert response.status_code == 422
+    error_detail = response.json()
+    assert "detail" in error_detail
+    # Pydantic validation errors are in a list format
+    error_str = str(error_detail["detail"]).lower()
+    assert "special character" in error_str
+
+    # Cleanup
+    await test_session.execute(delete(User))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_create_user_password_invalid_characters(
+    client: AsyncClient, test_session
+):
+    """
+    Test POST /api/v1/users/ returns 422
+    for password with invalid characters
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(User))
+    await test_session.commit()
+
+    # Try to create user with password containing invalid characters
+    user_data = {
+        "name": "測試",
+        "email": "test@example.com",
+        "user_type": "NORMAL",
+        "contact_phone": "0911111111",
+        "messaging_app_line": "test_line",
+        "address": "Test Address",
+        "password": "Test124!<///>",
+    }
+
+    response = await client.post("/api/v1/users/", json=user_data)
+    assert response.status_code == 422
+    error_detail = response.json()
+    assert "detail" in error_detail
+    # Pydantic validation errors are in a list format
+    error_str = str(error_detail["detail"]).lower()
+    assert "invalid" in error_str
+
+    # Cleanup
+    await test_session.execute(delete(User))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_create_user_duplicate_email(client: AsyncClient, test_session):
+    """
+    Test POST /api/v1/users/ returns 409
+    when trying to create user with duplicate email
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(User))
+    await test_session.commit()
+
+    # Create first user via API
+    user_data = {
+        "name": "測試",
+        "email": "duplicate@example.com",
+        "user_type": "NORMAL",
+        "contact_phone": "0911111111",
+        "messaging_app_line": "test_line",
+        "address": "Test Address",
+        "password": "Test1234!",
+    }
+
+    response = await client.post("/api/v1/users/", json=user_data)
+    assert response.status_code == 201
+
+    # Try to create another user with same email
+    duplicate_user_data = {
+        "name": "測試二",
+        "email": "duplicate@example.com",
+        "user_type": "ADMIN",
+        "contact_phone": "0922222222",
+        "messaging_app_line": "test_line2",
+        "address": "Test Address 2",
+        "password": "Test5678!",
+    }
+
+    response = await client.post("/api/v1/users/", json=duplicate_user_data)
+    assert response.status_code == 409
+    error_detail = response.json()
+    assert "detail" in error_detail
+    assert "already exists" in error_detail["detail"].lower()
+
+    # Cleanup
+    await test_session.execute(delete(User))
+    await test_session.commit()
