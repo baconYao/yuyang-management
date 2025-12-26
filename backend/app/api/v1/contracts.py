@@ -28,6 +28,11 @@ async def create_contract(contract: ContractWrite, service: ContractServiceDep):
         Created contract with assigned ID
     """
     created_contract = await service.create(contract)
+    if created_contract is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to create contract",
+        )
     return created_contract
 
 
