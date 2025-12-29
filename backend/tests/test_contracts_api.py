@@ -198,6 +198,268 @@ async def test_create_contract_via_api(client: AsyncClient, test_session):
 
 
 @pytest.mark.asyncio
+async def test_get_contracts_empty(client: AsyncClient, test_session):
+    """
+    Test GET /api/v1/contracts/ returns empty list when database is empty
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+    response = await client.get("/api/v1/contracts/")
+    assert response.status_code == 200
+    data = response.json()
+    assert data == []
+
+
+@pytest.mark.asyncio
+async def test_get_contracts_with_data(client: AsyncClient, test_session):
+    """
+    Test GET /api/v1/contracts/ returns all contracts from test database
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+    # Create test customers
+    test_customer1 = Customer(
+        customer_name="Get All Customer 1",
+        invoice_title="Get All Invoice 1",
+        invoice_number="GETALL001",
+        contact_phone="0977777777",
+        messaging_app_line="getall_test_line1",
+        address="Get All Address 1",
+        primary_contact="Get All Contact 1",
+        customer_type=CustomerType.COMPANY,
+    )
+    test_customer2 = Customer(
+        customer_name="Get All Customer 2",
+        invoice_title="Get All Invoice 2",
+        invoice_number="GETALL002",
+        contact_phone="0988888888",
+        messaging_app_line="getall_test_line2",
+        address="Get All Address 2",
+        primary_contact="Get All Contact 2",
+        customer_type=CustomerType.EDUCATION,
+    )
+    test_session.add(test_customer1)
+    test_session.add(test_customer2)
+    await test_session.commit()
+    await test_session.refresh(test_customer1)
+    await test_session.refresh(test_customer2)
+
+    # Create contracts via API
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=365)
+
+    contract1_data = {
+        "customer_id": str(test_customer1.id),
+        "product_name": "Get All Product 1",
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "monthly_rent": 10000,
+        "billing_interval": "3",
+        "status": "ACTIVE",
+    }
+
+    contract2_data = {
+        "customer_id": str(test_customer1.id),
+        "product_name": "Get All Product 2",
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "monthly_rent": 15000,
+        "billing_interval": "6",
+        "status": "PENDING",
+    }
+
+    contract3_data = {
+        "customer_id": str(test_customer2.id),
+        "product_name": "Get All Product 3",
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "monthly_rent": 20000,
+        "billing_interval": "12",
+        "status": "ACTIVE",
+    }
+
+    await client.post("/api/v1/contracts/", json=contract1_data)
+    await client.post("/api/v1/contracts/", json=contract2_data)
+    await client.post("/api/v1/contracts/", json=contract3_data)
+
+    # Get all contracts via API
+    response = await client.get("/api/v1/contracts/")
+    assert response.status_code == 200
+    contracts = response.json()
+
+    # Verify API returns all contracts
+    assert len(contracts) == 3
+
+    # Verify contract data
+    product_names = [contract["product_name"] for contract in contracts]
+    assert "Get All Product 1" in product_names
+    assert "Get All Product 2" in product_names
+    assert "Get All Product 3" in product_names
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_get_contracts_filtered_by_customer_id(client: AsyncClient, test_session):
+    """
+    Test GET /api/v1/contracts/?customer_id={uuid} returns only that customer's contracts
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+    # Create test customers
+    test_customer1 = Customer(
+        customer_name="Filter Customer 1",
+        invoice_title="Filter Invoice 1",
+        invoice_number="FILTER001",
+        contact_phone="0999999999",
+        messaging_app_line="filter_test_line1",
+        address="Filter Address 1",
+        primary_contact="Filter Contact 1",
+        customer_type=CustomerType.COMPANY,
+    )
+    test_customer2 = Customer(
+        customer_name="Filter Customer 2",
+        invoice_title="Filter Invoice 2",
+        invoice_number="FILTER002",
+        contact_phone="0900000000",
+        messaging_app_line="filter_test_line2",
+        address="Filter Address 2",
+        primary_contact="Filter Contact 2",
+        customer_type=CustomerType.REAL_ESTATE,
+    )
+    test_session.add(test_customer1)
+    test_session.add(test_customer2)
+    await test_session.commit()
+    await test_session.refresh(test_customer1)
+    await test_session.refresh(test_customer2)
+
+    # Create contracts via API
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=365)
+
+    contract1_data = {
+        "customer_id": str(test_customer1.id),
+        "product_name": "Filter Product 1",
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "monthly_rent": 10000,
+        "billing_interval": "3",
+        "status": "ACTIVE",
+    }
+
+    contract2_data = {
+        "customer_id": str(test_customer1.id),
+        "product_name": "Filter Product 2",
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "monthly_rent": 15000,
+        "billing_interval": "6",
+        "status": "ACTIVE",
+    }
+
+    contract3_data = {
+        "customer_id": str(test_customer2.id),
+        "product_name": "Filter Product 3",
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "monthly_rent": 20000,
+        "billing_interval": "12",
+        "status": "ACTIVE",
+    }
+
+    await client.post("/api/v1/contracts/", json=contract1_data)
+    await client.post("/api/v1/contracts/", json=contract2_data)
+    await client.post("/api/v1/contracts/", json=contract3_data)
+
+    # Get contracts for customer 1 via API
+    response = await client.get(f"/api/v1/contracts/?customer_id={test_customer1.id}")
+    assert response.status_code == 200
+    contracts = response.json()
+
+    # Verify only customer 1's contracts are returned
+    assert len(contracts) == 2
+
+    # Verify all contracts belong to customer 1
+    assert all(
+        contract["customer_id"] == str(test_customer1.id) for contract in contracts
+    )
+
+    # Verify product names
+    product_names = [contract["product_name"] for contract in contracts]
+    assert "Filter Product 1" in product_names
+    assert "Filter Product 2" in product_names
+    assert "Filter Product 3" not in product_names
+
+    # Get contracts for customer 2 via API
+    response2 = await client.get(f"/api/v1/contracts/?customer_id={test_customer2.id}")
+    assert response2.status_code == 200
+    contracts2 = response2.json()
+
+    # Verify only customer 2's contracts are returned
+    assert len(contracts2) == 1
+    assert contracts2[0]["customer_id"] == str(test_customer2.id)
+    assert contracts2[0]["product_name"] == "Filter Product 3"
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_get_contracts_with_nonexistent_customer_id(
+    client: AsyncClient, test_session
+):
+    """
+    Test GET /api/v1/contracts/?customer_id={uuid} returns empty list
+    when customer has no contracts
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+    # Create a customer
+    test_customer = Customer(
+        customer_name="No Contracts Customer",
+        invoice_title="No Contracts Invoice",
+        invoice_number="NOCON001",
+        contact_phone="0911111111",
+        messaging_app_line="nocontracts_test_line",
+        address="No Contracts Address",
+        primary_contact="No Contracts Contact",
+        customer_type=CustomerType.COMPANY,
+    )
+    test_session.add(test_customer)
+    await test_session.commit()
+    await test_session.refresh(test_customer)
+
+    # Try to get contracts for customer with no contracts
+    response = await client.get(f"/api/v1/contracts/?customer_id={test_customer.id}")
+    assert response.status_code == 200
+    contracts = response.json()
+
+    # Verify empty list is returned
+    assert contracts == []
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
 async def test_create_contract_with_minimal_fields(client: AsyncClient, test_session):
     """
     Test POST /api/v1/contracts/ creates a contract with only required fields

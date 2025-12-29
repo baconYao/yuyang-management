@@ -54,8 +54,16 @@ class ContractService:
         Returns:
             List of contracts
         """
-        # TODO: Implement contract retrieval logic
-        raise NotImplementedError
+        if customer_id is None:
+            # Get all contracts
+            statement = select(Contract)
+        else:
+            # Get contracts filtered by customer_id
+            statement = select(Contract).where(Contract.customer_id == customer_id)  # noqa: E501
+
+        result = await self._session.execute(statement)
+        db_contracts = result.scalars().all()
+        return [ContractRead.model_validate(contract) for contract in db_contracts]  # noqa: E501
 
     async def create(self, contract: ContractWrite) -> ContractRead | None:
         """

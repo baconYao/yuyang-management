@@ -133,6 +133,256 @@ async def test_get_by_id_with_none_id(contract_service):
 
 
 @pytest.mark.asyncio
+async def test_get_all_empty(contract_service, test_session):
+    """
+    Test get_all() returns empty list when database is empty
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+    result = await contract_service.get_all()
+
+    assert result == []
+    assert isinstance(result, list)
+
+
+@pytest.mark.asyncio
+async def test_get_all_with_contracts(contract_service, test_session, sample_customer):
+    """
+    Test get_all() returns all contracts
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+    from app.api.schemas.contract import ContractWrite
+
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=365)
+
+    # Create multiple contracts
+    contract1_data = ContractWrite(
+        customer_id=sample_customer.id,
+        product_name="商品1",
+        start_date=start_date,
+        end_date=end_date,
+        monthly_rent=10000,
+        billing_interval=BillingInterval.THREE_MONTHS,
+        status=ContractStatus.ACTIVE,
+    )
+
+    contract2_data = ContractWrite(
+        customer_id=sample_customer.id,
+        product_name="商品2",
+        start_date=start_date,
+        end_date=end_date,
+        monthly_rent=15000,
+        billing_interval=BillingInterval.SIX_MONTHS,
+        status=ContractStatus.PENDING,
+    )
+
+    contract3_data = ContractWrite(
+        customer_id=sample_customer.id,
+        product_name="商品3",
+        start_date=start_date,
+        end_date=end_date,
+        monthly_rent=20000,
+        billing_interval=BillingInterval.TWELVE_MONTHS,
+        status=ContractStatus.ACTIVE,
+    )
+
+    await contract_service.create(contract1_data)
+    await contract_service.create(contract2_data)
+    await contract_service.create(contract3_data)
+
+    result = await contract_service.get_all()
+
+    # Verify returned count
+    assert len(result) == 3
+
+    # Verify each contract's data
+    assert all(contract.id is not None for contract in result)
+    assert all(contract.product_name is not None for contract in result)
+
+    # Verify product names
+    product_names = [contract.product_name for contract in result]
+    assert "商品1" in product_names
+    assert "商品2" in product_names
+    assert "商品3" in product_names
+
+    # Verify monthly rents
+    monthly_rents = [contract.monthly_rent for contract in result]
+    assert 10000 in monthly_rents
+    assert 15000 in monthly_rents
+    assert 20000 in monthly_rents
+
+    # Verify billing intervals
+    billing_intervals = [contract.billing_interval for contract in result]
+    assert BillingInterval.THREE_MONTHS in billing_intervals
+    assert BillingInterval.SIX_MONTHS in billing_intervals
+    assert BillingInterval.TWELVE_MONTHS in billing_intervals
+
+    # Verify statuses
+    statuses = [contract.status for contract in result]
+    assert ContractStatus.ACTIVE in statuses
+    assert ContractStatus.PENDING in statuses
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_get_all_filtered_by_customer_id(contract_service, test_session):
+    """
+    Test get_all() with customer_id filter returns only that customer's contracts
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+    # Create customers
+    customer1 = Customer(
+        customer_name="客戶1",
+        invoice_title="發票抬頭1",
+        invoice_number="INV001",
+        contact_phone="0912345678",
+        messaging_app_line="line_id_1",
+        address="台北市信義區",
+        primary_contact="張三",
+        customer_type=CustomerType.COMPANY,
+    )
+    customer2 = Customer(
+        customer_name="客戶2",
+        invoice_title="發票抬頭2",
+        invoice_number="INV002",
+        contact_phone="0923456789",
+        messaging_app_line="line_id_2",
+        address="新北市板橋區",
+        primary_contact="李四",
+        customer_type=CustomerType.REAL_ESTATE,
+    )
+    test_session.add(customer1)
+    test_session.add(customer2)
+    await test_session.commit()
+    await test_session.refresh(customer1)
+    await test_session.refresh(customer2)
+
+    from app.api.schemas.contract import ContractWrite
+
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=365)
+
+    # Create contracts for customer 1
+    contract1_data = ContractWrite(
+        customer_id=customer1.id,
+        product_name="客戶1商品1",
+        start_date=start_date,
+        end_date=end_date,
+        monthly_rent=10000,
+        billing_interval=BillingInterval.THREE_MONTHS,
+        status=ContractStatus.ACTIVE,
+    )
+
+    contract2_data = ContractWrite(
+        customer_id=customer1.id,
+        product_name="客戶1商品2",
+        start_date=start_date,
+        end_date=end_date,
+        monthly_rent=15000,
+        billing_interval=BillingInterval.SIX_MONTHS,
+        status=ContractStatus.ACTIVE,
+    )
+
+    # Create contract for customer 2
+    contract3_data = ContractWrite(
+        customer_id=customer2.id,
+        product_name="客戶2商品1",
+        start_date=start_date,
+        end_date=end_date,
+        monthly_rent=20000,
+        billing_interval=BillingInterval.TWELVE_MONTHS,
+        status=ContractStatus.ACTIVE,
+    )
+
+    await contract_service.create(contract1_data)
+    await contract_service.create(contract2_data)
+    await contract_service.create(contract3_data)
+
+    # Get contracts for customer 1
+    result = await contract_service.get_all(customer_id=customer1.id)
+
+    # Verify only customer 1's contracts are returned
+    assert len(result) == 2
+
+    # Verify all contracts belong to customer 1
+    assert all(contract.customer_id == customer1.id for contract in result)
+
+    # Verify product names
+    product_names = [contract.product_name for contract in result]
+    assert "客戶1商品1" in product_names
+    assert "客戶1商品2" in product_names
+    assert "客戶2商品1" not in product_names
+
+    # Get contracts for customer 2
+    result2 = await contract_service.get_all(customer_id=customer2.id)
+
+    # Verify only customer 2's contracts are returned
+    assert len(result2) == 1
+    assert result2[0].customer_id == customer2.id
+    assert result2[0].product_name == "客戶2商品1"
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_get_all_filtered_by_nonexistent_customer_id(
+    contract_service, test_session, sample_customer
+):
+    """
+    Test get_all() with non-existent customer_id returns empty list
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+    # Create a contract for sample_customer
+    from app.api.schemas.contract import ContractWrite
+
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=365)
+
+    contract_data = ContractWrite(
+        customer_id=sample_customer.id,
+        product_name="測試商品",
+        start_date=start_date,
+        end_date=end_date,
+        monthly_rent=10000,
+        billing_interval=BillingInterval.THREE_MONTHS,
+        status=ContractStatus.ACTIVE,
+    )
+
+    await contract_service.create(contract_data)
+
+    # Try to get contracts for non-existent customer
+    non_existent_customer_id = uuid4()
+    result = await contract_service.get_all(customer_id=non_existent_customer_id)
+
+    # Verify empty list is returned
+    assert result == []
+    assert isinstance(result, list)
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
 async def test_create_contract_success(contract_service, test_session, sample_customer):
     """
     Test create() successfully creates a contract
