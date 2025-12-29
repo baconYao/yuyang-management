@@ -13,6 +13,113 @@ from app.database.models.customer import Customer
 
 
 @pytest.mark.asyncio
+async def test_get_contract_by_id_success(client: AsyncClient, test_session):
+    """
+    Test GET /api/v1/contracts/{contract_id} returns contract when found
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+    # Create a customer first
+    test_customer = Customer(
+        customer_name="Get ID Test Customer",
+        invoice_title="Get ID Invoice",
+        invoice_number="GET001",
+        contact_phone="0966666666",
+        messaging_app_line="get_id_test_line",
+        address="Get ID Test Address",
+        primary_contact="Get ID Contact",
+        customer_type=CustomerType.COMPANY,
+    )
+    test_session.add(test_customer)
+    await test_session.commit()
+    await test_session.refresh(test_customer)
+
+    # Create a contract via API
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=365)
+
+    contract_data = {
+        "customer_id": str(test_customer.id),
+        "product_name": "Get ID Test Product",
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "monthly_rent": 12000,
+        "billing_interval": "6",
+        "notes": "Get ID Test Notes",
+        "status": "ACTIVE",
+        "contract_number": "GET-CONTRACT-001",
+    }
+
+    create_response = await client.post("/api/v1/contracts/", json=contract_data)
+    assert create_response.status_code == 201
+    created_contract = create_response.json()
+    contract_id = created_contract["id"]
+
+    # Get contract by ID via API
+    response = await client.get(f"/api/v1/contracts/{contract_id}")
+    assert response.status_code == 200
+    contract = response.json()
+
+    # Verify response data
+    assert contract["id"] == contract_id
+    assert contract["product_name"] == "Get ID Test Product"
+    assert contract["monthly_rent"] == 12000
+    assert contract["billing_interval"] == "6"
+    assert contract["notes"] == "Get ID Test Notes"
+    assert contract["status"] == "ACTIVE"
+    assert contract["contract_number"] == "GET-CONTRACT-001"
+    assert contract["customer_id"] == str(test_customer.id)
+    assert contract["created_at"] is not None
+    assert contract["updated_at"] is not None
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_get_contract_by_id_not_found(client: AsyncClient, test_session):
+    """
+    Test GET /api/v1/contracts/{contract_id} returns 404
+    when contract not found
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+    # Try to get non-existent contract
+    non_existent_id = str(uuid4())
+    response = await client.get(f"/api/v1/contracts/{non_existent_id}")
+    assert response.status_code == 404
+    error_detail = response.json()
+    assert "detail" in error_detail
+    assert non_existent_id in error_detail["detail"]
+    assert "not found" in error_detail["detail"].lower()
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_get_contract_by_id_invalid_uuid(client: AsyncClient):
+    """
+    Test GET /api/v1/contracts/{contract_id} returns 422
+    for invalid UUID format
+    """
+    # Try to get contract with invalid UUID format
+    invalid_id = "not-a-valid-uuid"
+    response = await client.get(f"/api/v1/contracts/{invalid_id}")
+    assert response.status_code == 422
+    error_detail = response.json()
+    assert "detail" in error_detail
+
+
+@pytest.mark.asyncio
 async def test_create_contract_via_api(client: AsyncClient, test_session):
     """
     Test POST /api/v1/contracts/ creates a contract in the test database

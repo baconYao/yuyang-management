@@ -53,6 +53,86 @@ async def sample_customer(test_session):
 
 
 @pytest.mark.asyncio
+async def test_get_by_id_success(contract_service, test_session, sample_customer):
+    """
+    Test get_by_id() successfully retrieves a contract
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+    # Create a test contract
+    from app.api.schemas.contract import ContractWrite
+
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=365)
+
+    contract_data = ContractWrite(
+        customer_id=sample_customer.id,
+        product_name="測試商品",
+        start_date=start_date,
+        end_date=end_date,
+        monthly_rent=10000,
+        billing_interval=BillingInterval.THREE_MONTHS,
+        notes="測試備註",
+        status=ContractStatus.ACTIVE,
+        contract_number="CONTRACT-2024-001",
+    )
+
+    created_contract = await contract_service.create(contract_data)
+    assert created_contract is not None
+    contract_id = created_contract.id
+
+    # Get contract by ID
+    result = await contract_service.get_by_id(contract_id)
+
+    # Verify result
+    assert result is not None
+    assert result.id == contract_id
+    assert result.product_name == "測試商品"
+    assert result.monthly_rent == 10000
+    assert result.billing_interval == BillingInterval.THREE_MONTHS
+    assert result.notes == "測試備註"
+    assert result.status == ContractStatus.ACTIVE
+    assert result.contract_number == "CONTRACT-2024-001"
+    assert result.customer_id == sample_customer.id
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_get_by_id_not_found(contract_service, test_session):
+    """
+    Test get_by_id() returns None when contract doesn't exist
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+    # Try to get non-existent contract
+    non_existent_id = uuid4()
+    result = await contract_service.get_by_id(non_existent_id)
+
+    # Verify result is None
+    assert result is None
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_get_by_id_with_none_id(contract_service):
+    """
+    Test get_by_id() returns None when contract_id is None
+    """
+    result = await contract_service.get_by_id(None)  # type: ignore[arg-type]
+    assert result is None
+
+
+@pytest.mark.asyncio
 async def test_create_contract_success(contract_service, test_session, sample_customer):
     """
     Test create() successfully creates a contract
@@ -218,9 +298,7 @@ async def test_create_contract_invalid_customer_id(contract_service, test_sessio
 
 
 @pytest.mark.asyncio
-async def test_delete_contract_success(
-    contract_service, test_session, sample_customer
-):
+async def test_delete_contract_success(contract_service, test_session, sample_customer):
     """
     Test delete() successfully deletes a contract
     """
