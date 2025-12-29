@@ -101,12 +101,6 @@ async def update_contract_by_id(
     Raises:
         HTTPException: If contract not found
     """
-    if contract_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Contract ID is required",
-        )
-
     updated_contract = await service.update(contract_id, contract)
     return updated_contract
 
@@ -122,12 +116,6 @@ async def delete_contract(contract_id: UUID, service: ContractServiceDep):
     Raises:
         HTTPException: If contract not found
     """
-    if contract_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Contract ID is required",
-        )
-
     deleted = await service.delete(contract_id)
     if not deleted:
         raise HTTPException(

@@ -1,6 +1,7 @@
 import logging
 from uuid import UUID
 
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -109,8 +110,27 @@ class ContractService:
         Returns:
             True if contract was deleted, False if contract not found
         """
-        # TODO: Implement contract deletion logic
-        raise NotImplementedError
+        # Validate contract_id before querying database
+        if contract_id is None:
+            return False
+
+        # Get contract first to check if it exists
+        statement = select(Contract).where(Contract.id == contract_id)
+        result = await self._session.execute(statement)
+        db_contract = result.scalar_one_or_none()
+        if db_contract is None:
+            logger.warning(
+                f"Failed to delete contract: contract_id {contract_id} does not exist"  # noqa: E501
+            )
+            return False
+
+        # Delete the contract using delete statement
+        delete_statement = delete(Contract).where(
+            Contract.id == contract_id  # type: ignore[arg-type]
+        )
+        await self._session.execute(delete_statement)
+        await self._session.commit()
+        return True
 
     async def update(
         self, contract_id: UUID, contract_update: ContractUpdate

@@ -215,3 +215,88 @@ async def test_create_contract_invalid_customer_id(contract_service, test_sessio
     await test_session.execute(delete(Contract))
     await test_session.execute(delete(Customer))
     await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_delete_contract_success(
+    contract_service, test_session, sample_customer
+):
+    """
+    Test delete() successfully deletes a contract
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+    # Create a test contract
+    from app.api.schemas.contract import ContractWrite
+
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=365)
+
+    contract_data = ContractWrite(
+        customer_id=sample_customer.id,
+        product_name="Contract to Delete",
+        start_date=start_date,
+        end_date=end_date,
+        monthly_rent=10000,
+        billing_interval=BillingInterval.THREE_MONTHS,
+        status=ContractStatus.ACTIVE,
+    )
+
+    created_contract = await contract_service.create(contract_data)
+    assert created_contract is not None
+    contract_id = created_contract.id
+
+    # Verify contract exists before deletion
+    from sqlalchemy import select
+
+    statement = select(Contract).where(Contract.id == contract_id)
+    db_result = await test_session.execute(statement)
+    db_contract_before = db_result.scalar_one_or_none()
+    assert db_contract_before is not None
+    assert db_contract_before.product_name == "Contract to Delete"
+
+    # Delete contract
+    result = await contract_service.delete(contract_id)
+    assert result is True
+
+    # Verify contract no longer exists in database
+    statement = select(Contract).where(Contract.id == contract_id)
+    db_result = await test_session.execute(statement)
+    db_contract_after = db_result.scalar_one_or_none()
+    assert db_contract_after is None
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_delete_contract_not_found(contract_service, test_session):
+    """
+    Test delete() returns False when contract doesn't exist
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+    # Try to delete non-existent contract
+    non_existent_id = uuid4()
+    result = await contract_service.delete(non_existent_id)
+
+    # Verify result is False
+    assert result is False
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_delete_contract_with_none_id(contract_service):
+    """
+    Test delete() returns False when contract_id is None
+    """
+    result = await contract_service.delete(None)  # type: ignore[arg-type]
+    assert result is False

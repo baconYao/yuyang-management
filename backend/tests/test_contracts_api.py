@@ -292,3 +292,110 @@ async def test_create_contract_product_name_too_long(client: AsyncClient, test_s
     await test_session.execute(delete(Contract))
     await test_session.execute(delete(Customer))
     await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_delete_contract_success(client: AsyncClient, test_session):
+    """
+    Test DELETE /api/v1/contracts/{contract_id} successfully deletes
+    an existing contract
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+    # Create a customer first
+    test_customer = Customer(
+        customer_name="Delete Test Customer",
+        invoice_title="Delete Invoice",
+        invoice_number="DEL001",
+        contact_phone="0955555555",
+        messaging_app_line="delete_test_line",
+        address="Delete Test Address",
+        primary_contact="Delete Contact",
+        customer_type=CustomerType.COMPANY,
+    )
+    test_session.add(test_customer)
+    await test_session.commit()
+    await test_session.refresh(test_customer)
+
+    # Create a contract via API
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=365)
+
+    contract_data = {
+        "customer_id": str(test_customer.id),
+        "product_name": "Contract to Delete",
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "monthly_rent": 10000,
+        "billing_interval": "12",
+        "status": "ACTIVE",
+    }
+
+    create_response = await client.post("/api/v1/contracts/", json=contract_data)
+    assert create_response.status_code == 201
+    created_contract = create_response.json()
+    contract_id = created_contract["id"]
+
+    # Verify contract exists before deletion
+    result = await test_session.execute(
+        select(Contract).where(Contract.id == UUID(contract_id))  # type: ignore[arg-type]
+    )
+    db_contract_before = result.scalar_one_or_none()
+    assert db_contract_before is not None
+    assert db_contract_before.product_name == "Contract to Delete"
+
+    # Delete contract via API
+    response = await client.delete(f"/api/v1/contracts/{contract_id}")
+    assert response.status_code == 204
+
+    # Verify contract no longer exists in database
+    result = await test_session.execute(
+        select(Contract).where(Contract.id == UUID(contract_id))  # type: ignore[arg-type]
+    )
+    db_contract_after = result.scalar_one_or_none()
+    assert db_contract_after is None
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_delete_contract_not_found(client: AsyncClient, test_session):
+    """
+    Test DELETE /api/v1/contracts/{contract_id} returns 404
+    when contract not found
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+    # Try to delete non-existent contract
+    non_existent_id = str(uuid4())
+    response = await client.delete(f"/api/v1/contracts/{non_existent_id}")
+    assert response.status_code == 404
+    error_detail = response.json()
+    assert "detail" in error_detail
+    assert non_existent_id in error_detail["detail"]
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_delete_contract_invalid_uuid(client: AsyncClient):
+    """
+    Test DELETE /api/v1/contracts/{contract_id} returns 422
+    for invalid UUID format
+    """
+    # Try to delete contract with invalid UUID format
+    invalid_id = "not-a-valid-uuid"
+    response = await client.delete(f"/api/v1/contracts/{invalid_id}")
+    assert response.status_code == 422
+    error_detail = response.json()
+    assert "detail" in error_detail
