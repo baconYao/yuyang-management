@@ -23,6 +23,7 @@ async def test_engine():
     # Create all tables
     async with engine.begin() as conn:
         # Need to import all models so SQLModel knows which tables to create
+        from app.database.models.contract import Contract  # noqa: F401
         from app.database.models.customer import Customer  # noqa: F401
         from app.database.models.user import User  # noqa: F401
 
