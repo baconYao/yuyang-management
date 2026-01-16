@@ -160,6 +160,32 @@ class ContractService:
 
         Returns:
             ContractRead if contract was updated
+
+        Raises:
+            ValueError: If contract not found
         """
-        # TODO: Implement contract update logic
-        raise NotImplementedError
+        # Validate contract_id before querying database
+        if contract_id is None:
+            raise ValueError("Contract ID cannot be None")
+
+        # Get contract first to check if it exists
+        statement = select(Contract).where(Contract.id == contract_id)
+        result = await self._session.execute(statement)
+        db_contract = result.scalar_one_or_none()
+        if db_contract is None:
+            logger.warning(
+                f"Failed to update contract: contract_id {contract_id} does not exist"  # noqa: E501
+            )
+            raise ValueError(f"Contract with ID {contract_id} not found")
+
+        # Update only provided fields
+        update_data = contract_update.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(db_contract, field, value)
+
+        # Commit the changes
+        await self._session.commit()
+        await self._session.refresh(db_contract)
+
+        # Convert to read schema
+        return ContractRead.model_validate(db_contract)

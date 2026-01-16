@@ -101,8 +101,14 @@ async def update_contract_by_id(
     Raises:
         HTTPException: If contract not found
     """
-    updated_contract = await service.update(contract_id, contract)
-    return updated_contract
+    try:
+        updated_contract = await service.update(contract_id, contract)
+        return updated_contract
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
 
 
 @router.delete("/{contract_id}", status_code=status.HTTP_204_NO_CONTENT)

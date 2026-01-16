@@ -10,6 +10,8 @@ from sqlalchemy import delete
 from app.api.schemas.contract import (
     BillingInterval,
     ContractStatus,
+    ContractUpdate,
+    ContractWrite,
     PaymentMethod,
 )
 from app.api.schemas.customer import CustomerType
@@ -628,3 +630,202 @@ async def test_delete_contract_with_none_id(contract_service):
     """
     result = await contract_service.delete(None)  # type: ignore[arg-type]
     assert result is False
+
+
+@pytest.mark.asyncio
+async def test_update_contract_success(contract_service, test_session, sample_customer):
+    """
+    Test update() successfully updates a contract
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+    # Create a test contract
+    from app.api.schemas.contract import ContractWrite
+
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=365)
+
+    contract_data = ContractWrite(
+        customer_id=sample_customer.id,
+        product_name="Original Product",
+        start_date=start_date,
+        end_date=end_date,
+        monthly_rent=10000,
+        billing_interval=BillingInterval.THREE_MONTHS,
+        notes="Original Notes",
+        status=ContractStatus.ACTIVE,
+        payment_method=PaymentMethod.BANK_TRANSFER,
+    )
+
+    created_contract = await contract_service.create(contract_data)
+    assert created_contract is not None
+    contract_id = created_contract.id
+
+    # Update contract
+    from app.api.schemas.contract import ContractUpdate
+
+    update_data = ContractUpdate(
+        billing_interval=BillingInterval.SIX_MONTHS,
+        notes="Updated Notes",
+        status=ContractStatus.PENDING,
+        payment_method=PaymentMethod.CASH,
+    )
+
+    result = await contract_service.update(contract_id, update_data)
+
+    # Verify result
+    assert result is not None
+    assert result.id == contract_id
+    assert result.billing_interval == BillingInterval.SIX_MONTHS
+    assert result.notes == "Updated Notes"
+    assert result.status == ContractStatus.PENDING
+    assert result.payment_method == PaymentMethod.CASH
+
+    # Verify original fields are unchanged
+    assert result.product_name == "Original Product"
+    assert result.monthly_rent == 10000
+    assert result.customer_id == sample_customer.id
+
+    # Verify contract was updated in database
+    from sqlalchemy import select
+
+    statement = select(Contract).where(Contract.id == contract_id)
+    db_result = await test_session.execute(statement)
+    db_contract = db_result.scalar_one_or_none()
+    assert db_contract is not None
+    assert db_contract.billing_interval == BillingInterval.SIX_MONTHS
+    assert db_contract.notes == "Updated Notes"
+    assert db_contract.status == ContractStatus.PENDING
+    assert db_contract.payment_method == PaymentMethod.CASH
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_update_contract_partial_update(
+    contract_service, test_session, sample_customer
+):
+    """
+    Test update() with partial update only updates specified fields
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+    # Create a test contract
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=365)
+
+    contract_data = ContractWrite(
+        customer_id=sample_customer.id,
+        product_name="Partial Update Product",
+        start_date=start_date,
+        end_date=end_date,
+        monthly_rent=10000,
+        billing_interval=BillingInterval.THREE_MONTHS,
+        notes="Original Notes",
+        status=ContractStatus.ACTIVE,
+        payment_method=PaymentMethod.BANK_TRANSFER,
+    )
+
+    created_contract = await contract_service.create(contract_data)
+    assert created_contract is not None
+    contract_id = created_contract.id
+    original_billing_interval = created_contract.billing_interval
+    original_payment_method = created_contract.payment_method
+
+    # Update only status
+    update_data = ContractUpdate(
+        status=ContractStatus.SUSPENDED,
+    )
+
+    result = await contract_service.update(contract_id, update_data)
+
+    # Verify only status was updated
+    assert result.status == ContractStatus.SUSPENDED
+    assert result.billing_interval == original_billing_interval
+    assert result.payment_method == original_payment_method
+    assert result.notes == "Original Notes"
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_update_contract_not_found(contract_service, test_session):
+    """
+    Test update() raises ValueError when contract doesn't exist
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+    from app.api.schemas.contract import ContractUpdate
+
+    # Try to update non-existent contract
+    non_existent_id = uuid4()
+    update_data = ContractUpdate(status=ContractStatus.ACTIVE)
+
+    with pytest.raises(ValueError) as exc_info:
+        await contract_service.update(non_existent_id, update_data)
+
+    assert "not found" in str(exc_info.value).lower()
+    assert str(non_existent_id) in str(exc_info.value)
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_update_contract_with_termination(
+    contract_service, test_session, sample_customer
+):
+    """
+    Test update() can set termination fields
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+    # Create a test contract
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=365)
+
+    contract_data = ContractWrite(
+        customer_id=sample_customer.id,
+        product_name="Termination Test Product",
+        start_date=start_date,
+        end_date=end_date,
+        monthly_rent=10000,
+        billing_interval=BillingInterval.THREE_MONTHS,
+        status=ContractStatus.ACTIVE,
+    )
+
+    created_contract = await contract_service.create(contract_data)
+    assert created_contract is not None
+    contract_id = created_contract.id
+
+    # Terminate contract
+    termination_date = datetime.now()
+    update_data = ContractUpdate(
+        status=ContractStatus.TERMINATED,
+        terminated_at=termination_date,
+        termination_reason="Contract terminated by customer request",
+    )
+
+    result = await contract_service.update(contract_id, update_data)
+
+    # Verify termination fields
+    assert result.status == ContractStatus.TERMINATED
+    assert result.terminated_at is not None
+    assert result.termination_reason == "Contract terminated by customer request"
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.commit()

@@ -768,3 +768,261 @@ async def test_delete_contract_invalid_uuid(client: AsyncClient):
     assert response.status_code == 422
     error_detail = response.json()
     assert "detail" in error_detail
+
+
+@pytest.mark.asyncio
+async def test_update_contract_success(client: AsyncClient, test_session):
+    """
+    Test PATCH /api/v1/contracts/{contract_id} successfully updates
+    an existing contract
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+    # Create a customer first
+    test_customer = Customer(
+        customer_name="Update Test Customer",
+        invoice_title="Update Invoice",
+        invoice_number="UPD001",
+        contact_phone="0999999999",
+        messaging_app_line="update_test_line",
+        address="Update Test Address",
+        primary_contact="Update Contact",
+        customer_type=CustomerType.COMPANY,
+    )
+    test_session.add(test_customer)
+    await test_session.commit()
+    await test_session.refresh(test_customer)
+
+    # Create a contract via API
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=365)
+
+    contract_data = {
+        "customer_id": str(test_customer.id),
+        "product_name": "Original Product",
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "monthly_rent": 10000,
+        "billing_interval": "3",
+        "notes": "Original Notes",
+        "status": "ACTIVE",
+        "payment_method": "BANK_TRANSFER",
+    }
+
+    create_response = await client.post("/api/v1/contracts/", json=contract_data)
+    assert create_response.status_code == 201
+    created_contract = create_response.json()
+    contract_id = created_contract["id"]
+
+    # Update contract via API
+    update_data = {
+        "billing_interval": "6",
+        "notes": "Updated Notes",
+        "status": "PENDING",
+        "payment_method": "CASH",
+    }
+
+    response = await client.patch(f"/api/v1/contracts/{contract_id}", json=update_data)
+    assert response.status_code == 200
+    updated_contract = response.json()
+
+    # Verify response data
+    assert updated_contract["id"] == contract_id
+    assert updated_contract["billing_interval"] == "6"
+    assert updated_contract["notes"] == "Updated Notes"
+    assert updated_contract["status"] == "PENDING"
+    assert updated_contract["payment_method"] == "CASH"
+
+    # Verify original fields are unchanged
+    assert updated_contract["product_name"] == "Original Product"
+    assert updated_contract["monthly_rent"] == 10000
+    assert updated_contract["customer_id"] == str(test_customer.id)
+
+    # Verify contract was updated in database
+    result = await test_session.execute(
+        select(Contract).where(Contract.id == UUID(contract_id))  # type: ignore[arg-type]
+    )
+    db_contract = result.scalar_one_or_none()
+    assert db_contract is not None
+    assert db_contract.billing_interval.value == "6"
+    assert db_contract.notes == "Updated Notes"
+    assert db_contract.status.value == "PENDING"
+    assert db_contract.payment_method.value == "CASH"
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_update_contract_partial_update(client: AsyncClient, test_session):
+    """
+    Test PATCH /api/v1/contracts/{contract_id} successfully updates
+    only specified fields
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+    # Create a customer first
+    test_customer = Customer(
+        customer_name="Partial Update Customer",
+        invoice_title="Partial Update Invoice",
+        invoice_number="PART001",
+        contact_phone="0888888888",
+        messaging_app_line="partial_update_test_line",
+        address="Partial Update Address",
+        primary_contact="Partial Update Contact",
+        customer_type=CustomerType.EDUCATION,
+    )
+    test_session.add(test_customer)
+    await test_session.commit()
+    await test_session.refresh(test_customer)
+
+    # Create a contract via API
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=365)
+
+    contract_data = {
+        "customer_id": str(test_customer.id),
+        "product_name": "Partial Update Product",
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "monthly_rent": 10000,
+        "billing_interval": "3",
+        "notes": "Original Notes",
+        "status": "ACTIVE",
+        "payment_method": "BANK_TRANSFER",
+    }
+
+    create_response = await client.post("/api/v1/contracts/", json=contract_data)
+    assert create_response.status_code == 201
+    created_contract = create_response.json()
+    contract_id = created_contract["id"]
+    original_billing_interval = created_contract["billing_interval"]
+    original_payment_method = created_contract["payment_method"]
+
+    # Update only status via API
+    update_data = {
+        "status": "SUSPENDED",
+    }
+
+    response = await client.patch(f"/api/v1/contracts/{contract_id}", json=update_data)
+    assert response.status_code == 200
+    updated_contract = response.json()
+
+    # Verify only status was updated
+    assert updated_contract["status"] == "SUSPENDED"
+    assert updated_contract["billing_interval"] == original_billing_interval
+    assert updated_contract["payment_method"] == original_payment_method
+    assert updated_contract["notes"] == "Original Notes"
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_update_contract_not_found(client: AsyncClient, test_session):
+    """
+    Test PATCH /api/v1/contracts/{contract_id} returns 404
+    when contract not found
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+    # Try to update non-existent contract
+    non_existent_id = str(uuid4())
+    update_data = {
+        "status": "ACTIVE",
+    }
+
+    response = await client.patch(
+        f"/api/v1/contracts/{non_existent_id}", json=update_data
+    )
+    assert response.status_code == 404
+    error_detail = response.json()
+    assert "detail" in error_detail
+    assert non_existent_id in error_detail["detail"]
+    assert "not found" in error_detail["detail"].lower()
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_update_contract_with_termination(client: AsyncClient, test_session):
+    """
+    Test PATCH /api/v1/contracts/{contract_id} can set termination fields
+    """
+    # Ensure database is empty
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+    # Create a customer first
+    test_customer = Customer(
+        customer_name="Termination Test Customer",
+        invoice_title="Termination Invoice",
+        invoice_number="TERM001",
+        contact_phone="0777777777",
+        messaging_app_line="termination_test_line",
+        address="Termination Address",
+        primary_contact="Termination Contact",
+        customer_type=CustomerType.COMPANY,
+    )
+    test_session.add(test_customer)
+    await test_session.commit()
+    await test_session.refresh(test_customer)
+
+    # Create a contract via API
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=365)
+
+    contract_data = {
+        "customer_id": str(test_customer.id),
+        "product_name": "Termination Test Product",
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "monthly_rent": 10000,
+        "billing_interval": "3",
+        "status": "ACTIVE",
+    }
+
+    create_response = await client.post("/api/v1/contracts/", json=contract_data)
+    assert create_response.status_code == 201
+    created_contract = create_response.json()
+    contract_id = created_contract["id"]
+
+    # Terminate contract via API
+    termination_date = datetime.now()
+    update_data = {
+        "status": "TERMINATED",
+        "terminated_at": termination_date.isoformat(),
+        "termination_reason": "Contract terminated by customer request",
+    }
+
+    response = await client.patch(f"/api/v1/contracts/{contract_id}", json=update_data)
+    assert response.status_code == 200
+    updated_contract = response.json()
+
+    # Verify termination fields
+    assert updated_contract["status"] == "TERMINATED"
+    assert updated_contract["terminated_at"] is not None
+    assert (
+        updated_contract["termination_reason"]
+        == "Contract terminated by customer request"
+    )
+
+    # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
