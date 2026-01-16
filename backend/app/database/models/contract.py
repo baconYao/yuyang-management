@@ -65,7 +65,7 @@ class Contract(SQLModel, table=True):
             postgresql.ENUM(
                 BillingInterval,
                 name="billinginterval",
-                create_type=False,
+                create_type=True,
             ),
             nullable=False,
         ),
@@ -81,7 +81,7 @@ class Contract(SQLModel, table=True):
             postgresql.ENUM(
                 ContractStatus,
                 name="contractstatus",
-                create_type=False,
+                create_type=True,
             ),
             nullable=False,
         ),
@@ -102,7 +102,7 @@ class Contract(SQLModel, table=True):
             postgresql.ENUM(
                 PaymentMethod,
                 name="paymentmethod",
-                create_type=False,
+                create_type=True,
             ),
             nullable=True,
         ),
