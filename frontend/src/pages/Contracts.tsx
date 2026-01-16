@@ -1,12 +1,11 @@
 import { useEffect, useState, useMemo } from 'react';
 import { contractApi, customerApi } from '../services/api';
-import type { Contract, Customer, ContractWithCustomer } from '../types';
+import type { ContractWithCustomer } from '../types';
 
 const ITEMS_PER_PAGE = 15;
 
 export default function Contracts() {
   const [contracts, setContracts] = useState<ContractWithCustomer[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -32,7 +31,6 @@ export default function Contracts() {
         }));
 
         setContracts(contractsWithCustomers);
-        setCustomers(customersData);
       } catch (error) {
         console.error('Failed to fetch contracts:', error);
       } finally {

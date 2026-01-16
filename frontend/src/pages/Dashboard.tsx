@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { customerApi, contractApi } from '../services/api';
-import { CustomerType } from '../types';
 import { getCustomerTypeLabel } from '../utils/customerTypeLabels';
 
 export default function Dashboard() {
@@ -23,7 +22,6 @@ export default function Dashboard() {
         // Count customers by type
         const typeCount: Record<string, number> = {};
         customers.forEach((customer) => {
-          const type = customer.customer_type || '未分類';
           const label = customer.customer_type
             ? getCustomerTypeLabel(customer.customer_type)
             : '未分類';
