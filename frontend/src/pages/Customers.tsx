@@ -1,8 +1,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { customerApi, contractApi } from '../services/api';
-import type { Customer, Contract } from '../types';
+import type { Customer, Contract, ContractWithCustomer } from '../types';
 import type { CustomerStatus } from '../types';
 import { CustomerType } from '../types';
+import ContractDetailModal from '../components/ContractDetailModal';
 import { getContractStatusDisplay } from '../utils/contractStatusDisplay';
 import { getCustomerTypeLabel } from '../utils/customerTypeLabels';
 
@@ -40,6 +41,8 @@ export default function Customers() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [modalContracts, setModalContracts] = useState<Contract[]>([]);
   const [modalContractsLoading, setModalContractsLoading] = useState(false);
+  const [selectedContractInModal, setSelectedContractInModal] =
+    useState<ContractWithCustomer | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -114,6 +117,22 @@ export default function Customers() {
 
   const closeModal = () => {
     setSelectedCustomer(null);
+    setSelectedContractInModal(null);
+  };
+
+  const handleContractRowClick = (e: React.MouseEvent, contract: Contract) => {
+    e.stopPropagation();
+    setSelectedContractInModal({
+      ...contract,
+      customer_name: selectedCustomer?.customer_name ?? null,
+    });
+  };
+
+  const handleContractUpdated = (updated: ContractWithCustomer) => {
+    setModalContracts((prev) =>
+      prev.map((c) => (c.id === updated.id ? updated : c))
+    );
+    setSelectedContractInModal(updated);
   };
 
   if (loading) {
@@ -384,7 +403,11 @@ export default function Customers() {
                       {modalContracts.map((contract) => {
                         const statusDisplay = getContractStatusDisplay(contract);
                         return (
-                          <tr key={contract.id} className="hover:bg-gray-50">
+                          <tr
+                            key={contract.id}
+                            onClick={(e) => handleContractRowClick(e, contract)}
+                            className="hover:bg-gray-100 cursor-pointer transition-colors"
+                          >
                             <td className="px-4 py-2 text-sm text-gray-900">
                               {contract.contract_number || '—'}
                             </td>
@@ -418,6 +441,12 @@ export default function Customers() {
           </div>
         </div>
       )}
+
+      <ContractDetailModal
+        contract={selectedContractInModal}
+        onClose={() => setSelectedContractInModal(null)}
+        onContractUpdated={handleContractUpdated}
+      />
     </div>
   );
 }
