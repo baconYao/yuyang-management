@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { contractApi, customerApi } from '../services/api';
 import type { ContractWithCustomer } from '../types';
+import { getContractStatusDisplay } from '../utils/contractStatusDisplay';
 
 const ITEMS_PER_PAGE = 15;
 
@@ -105,30 +106,43 @@ export default function Contracts() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   客戶名稱
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  狀態
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedContracts.length === 0 ? (
                 <tr>
-                  <td colSpan={2} className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan={3} className="px-6 py-4 text-center text-gray-500">
                     沒有找到合約資料
                   </td>
                 </tr>
               ) : (
-                paginatedContracts.map((contract) => (
-                  <tr key={contract.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {contract.contract_number || contract.id.substring(0, 8)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {contract.customer_name || '未知客戶'}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                paginatedContracts.map((contract) => {
+                  const statusDisplay = getContractStatusDisplay(contract);
+                  return (
+                    <tr key={contract.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {contract.contract_number || contract.id.substring(0, 8)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {contract.customer_name || '未知客戶'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`px-2 py-0.5 text-xs font-medium rounded ${statusDisplay.className}`}
+                        >
+                          {statusDisplay.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

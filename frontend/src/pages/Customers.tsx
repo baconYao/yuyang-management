@@ -3,6 +3,7 @@ import { customerApi, contractApi } from '../services/api';
 import type { Customer, Contract } from '../types';
 import type { CustomerStatus } from '../types';
 import { CustomerType } from '../types';
+import { getContractStatusDisplay } from '../utils/contractStatusDisplay';
 import { getCustomerTypeLabel } from '../utils/customerTypeLabels';
 
 const ITEMS_PER_PAGE = 15;
@@ -31,7 +32,6 @@ function formatDate(iso: string | null | undefined): string {
 
 export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortType, setSortType] = useState<CustomerType | 'ALL'>('ALL');
@@ -44,14 +44,10 @@ export default function Customers() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [customersData, contractsData] = await Promise.all([
-          customerApi.getAll(),
-          contractApi.getAll(),
-        ]);
+        const customersData = await customerApi.getAll();
         setCustomers(customersData);
-        setContracts(contractsData);
       } catch (error) {
-        console.error('Failed to fetch data:', error);
+        console.error('Failed to fetch customers:', error);
       } finally {
         setLoading(false);
       }
@@ -59,14 +55,6 @@ export default function Customers() {
 
     fetchData();
   }, []);
-
-  const contractCountByCustomerId = useMemo(() => {
-    const count: Record<string, number> = {};
-    for (const c of contracts) {
-      count[c.customer_id] = (count[c.customer_id] ?? 0) + 1;
-    }
-    return count;
-  }, [contracts]);
 
   useEffect(() => {
     if (!selectedCustomer) {
@@ -202,9 +190,6 @@ export default function Customers() {
                   聯絡資訊
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  合約數量
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   合作狀態
                 </th>
               </tr>
@@ -212,7 +197,7 @@ export default function Customers() {
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
                     沒有找到客戶資料
                   </td>
                 </tr>
@@ -236,9 +221,6 @@ export default function Customers() {
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-700 max-w-xs truncate">
                         {formatContactInfo(customer)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        {contractCountByCustomerId[customer.id] ?? 0}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
@@ -399,30 +381,35 @@ export default function Customers() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {modalContracts.map((contract) => (
-                        <tr key={contract.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-2 text-sm text-gray-900">
-                            {contract.contract_number || '—'}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-900">
-                            {contract.product_name}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-700 whitespace-nowrap">
-                            {formatDate(contract.start_date)}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-700 whitespace-nowrap">
-                            {formatDate(contract.end_date)}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-700">
-                            {contract.monthly_rent != null ? `$${contract.monthly_rent}` : '—'}
-                          </td>
-                          <td className="px-4 py-2 text-sm">
-                            <span className="px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800">
-                              {contract.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                      {modalContracts.map((contract) => {
+                        const statusDisplay = getContractStatusDisplay(contract);
+                        return (
+                          <tr key={contract.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-2 text-sm text-gray-900">
+                              {contract.contract_number || '—'}
+                            </td>
+                            <td className="px-4 py-2 text-sm text-gray-900">
+                              {contract.product_name}
+                            </td>
+                            <td className="px-4 py-2 text-sm text-gray-700 whitespace-nowrap">
+                              {formatDate(contract.start_date)}
+                            </td>
+                            <td className="px-4 py-2 text-sm text-gray-700 whitespace-nowrap">
+                              {formatDate(contract.end_date)}
+                            </td>
+                            <td className="px-4 py-2 text-sm text-gray-700">
+                              {contract.monthly_rent != null ? `$${contract.monthly_rent}` : '—'}
+                            </td>
+                            <td className="px-4 py-2 text-sm">
+                              <span
+                                className={`px-2 py-0.5 text-xs font-medium rounded ${statusDisplay.className}`}
+                              >
+                                {statusDisplay.label}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
