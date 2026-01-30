@@ -35,6 +35,14 @@ class BillingInterval(str, Enum):
     TWENTY_FOUR_MONTHS = "24"
 
 
+class InvoiceType(str, Enum):
+    """Invoice type enumeration"""
+
+    NO_INVOICE = "NO_INVOICE"  # 不開立發票
+    DUPLICATE_UNIFORM_INVOICE = "DUPLICATE_UNIFORM_INVOICE"  # 二聯式發票
+    TRIPLE_UNIFORM_INVOICE = "TRIPLE_UNIFORM_INVOICE"  # 三聯式發票
+
+
 class BaseContract(BaseModel):
     """Base contract information schema"""
 
@@ -59,6 +67,9 @@ class BaseContract(BaseModel):
     signed_date: datetime | None = Field(None, description="Contract signed date")
     payment_method: PaymentMethod | None = Field(None, description="Payment method")
     next_billing_date: datetime | None = Field(None, description="Next billing date")
+    invoice_type: InvoiceType | None = Field(
+        None, description="Invoice type (e.g. duplicate/triple uniform invoice)"
+    )
     # 合約終止日期
     terminated_at: datetime | None = Field(
         None, description="Contract termination date"
@@ -96,6 +107,9 @@ class ContractUpdate(BaseModel):
     status: ContractStatus | None = Field(None, description="Contract status")
     payment_method: PaymentMethod | None = Field(None, description="Payment method")
     next_billing_date: datetime | None = Field(None, description="Next billing date")
+    invoice_type: InvoiceType | None = Field(
+        None, description="Invoice type (e.g. duplicate/triple uniform invoice)"
+    )
     terminated_at: datetime | None = Field(
         None, description="Contract termination date"
     )

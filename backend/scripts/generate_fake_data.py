@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# flake8: noqa: E501
 """
 Generate fake data for development and testing.
 
@@ -18,6 +19,7 @@ from sqlalchemy.orm import sessionmaker
 from app.api.schemas.contract import (
     BillingInterval,
     ContractStatus,
+    InvoiceType,
     PaymentMethod,
 )
 from app.api.schemas.customer import CustomerStatus, CustomerType
@@ -146,7 +148,9 @@ def generate_customer(index: int) -> Customer:
     """Generate a fake customer. First 10 are TERMINATED, rest are ACTIVE."""
     customer_types = list(CustomerType)
     customer_type = customer_types[index % len(customer_types)]
-    status = CustomerStatus.TERMINATED if index < NUM_TERMINATED else CustomerStatus.ACTIVE
+    status = (
+        CustomerStatus.TERMINATED if index < NUM_TERMINATED else CustomerStatus.ACTIVE
+    )
 
     company_name = COMPANY_NAMES[index % len(COMPANY_NAMES)]
     contact_name = CONTACT_NAMES[index % len(CONTACT_NAMES)]
@@ -242,6 +246,8 @@ def generate_contract(customer_id: str, contract_index: int) -> Contract:
         ]
         termination_reason = random.choice(termination_reasons)
 
+    invoice_type = random.choice(list(InvoiceType))
+
     return Contract(
         id=uuid4(),
         customer_id=customer_id,
@@ -256,6 +262,7 @@ def generate_contract(customer_id: str, contract_index: int) -> Contract:
         signed_date=signed_date,
         payment_method=payment_method,
         next_billing_date=next_billing_date,
+        invoice_type=invoice_type,
         terminated_at=terminated_at,
         termination_reason=termination_reason,
         created_at=start_date - timedelta(days=random.randint(1, 7)),
@@ -296,7 +303,9 @@ async def generate_fake_data():
         contract_index = 1
 
         print(f"  - {NUM_TERMINATED} customers without cooperation (TERMINATED)")
-        print(f"  - {NUM_ACTIVE} customers with cooperation (ACTIVE), 1-3 contracts each")
+        print(
+            f"  - {NUM_ACTIVE} customers with cooperation (ACTIVE), 1-3 contracts each"
+        )
 
         for i in range(NUM_TERMINATED, NUM_TERMINATED + NUM_ACTIVE):
             customer = customers[i]
@@ -308,7 +317,9 @@ async def generate_fake_data():
                 contract_index += 1
 
         await session.commit()
-        print(f"✓ Created {total_contracts} contracts for {NUM_ACTIVE} ACTIVE customers")
+        print(
+            f"✓ Created {total_contracts} contracts for {NUM_ACTIVE} ACTIVE customers"
+        )
 
         print("\n" + "=" * 50)
         print("Summary:")

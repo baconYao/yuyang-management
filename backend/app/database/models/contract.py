@@ -8,6 +8,7 @@ from sqlmodel import Column, Field, SQLModel
 from app.api.schemas.contract import (
     BillingInterval,
     ContractStatus,
+    InvoiceType,
     PaymentMethod,
 )
 
@@ -113,6 +114,18 @@ class Contract(SQLModel, table=True):
         sa_column=Column(postgresql.TIMESTAMP, nullable=True),
         default=None,
         description="Next billing date",
+    )
+    invoice_type: InvoiceType | None = Field(
+        sa_column=Column(
+            postgresql.ENUM(
+                InvoiceType,
+                name="invoicetype",
+                create_type=True,
+            ),
+            nullable=True,
+        ),
+        default=None,
+        description="Invoice type (e.g. duplicate/triple uniform invoice)",
     )
     terminated_at: datetime | None = Field(
         sa_column=Column(postgresql.TIMESTAMP, nullable=True),

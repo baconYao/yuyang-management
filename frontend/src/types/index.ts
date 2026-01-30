@@ -36,6 +36,7 @@ export interface Contract {
   signed_date: string | null;
   payment_method: string | null;
   next_billing_date: string | null;
+  invoice_type: string | null;
   terminated_at: string | null;
   termination_reason: string | null;
   created_at: string | null;

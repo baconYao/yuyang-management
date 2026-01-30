@@ -49,6 +49,12 @@ const PAYMENT_METHOD_OPTIONS = [
   { value: 'OTHER', label: '其他' },
 ];
 
+const INVOICE_TYPE_OPTIONS = [
+  { value: 'NO_INVOICE', label: '不開立發票' },
+  { value: 'DUPLICATE_UNIFORM_INVOICE', label: '二聯式發票' },
+  { value: 'TRIPLE_UNIFORM_INVOICE', label: '三聯式發票' },
+];
+
 function getPaymentMethodLabel(value: string | null | undefined): string {
   if (!value) return '—';
   const opt = PAYMENT_METHOD_OPTIONS.find((o) => o.value === value);
@@ -58,6 +64,12 @@ function getPaymentMethodLabel(value: string | null | undefined): string {
 function getBillingIntervalDisplay(value: string | null | undefined): string {
   if (!value) return '—';
   return `${value} 月`;
+}
+
+function getInvoiceTypeLabel(value: string | null | undefined): string {
+  if (!value) return '—';
+  const opt = INVOICE_TYPE_OPTIONS.find((o) => o.value === value);
+  return opt?.label ?? value;
 }
 
 function EditIcon({ className }: { className?: string }) {
@@ -87,6 +99,7 @@ const initialEditForm = {
   terminated_at: '',
   termination_reason: '',
   billing_interval: '',
+  invoice_type: '',
 };
 
 export interface ContractDetailModalProps {
@@ -115,6 +128,7 @@ export default function ContractDetailModal({
       terminated_at: toDateInputValue(contract.terminated_at),
       termination_reason: contract.termination_reason ?? '',
       billing_interval: contract.billing_interval ?? '',
+      invoice_type: contract.invoice_type ?? '',
     });
     setIsEditing(false);
     setSaveError(null);
@@ -144,6 +158,7 @@ export default function ContractDetailModal({
           : null,
         termination_reason: editForm.termination_reason || null,
         billing_interval: editForm.billing_interval || undefined,
+        invoice_type: editForm.invoice_type || null,
       };
       const updated = await contractApi.update(contract.id, payload);
       const withCustomer: ContractWithCustomer = {
@@ -168,6 +183,7 @@ export default function ContractDetailModal({
       terminated_at: toDateInputValue(contract.terminated_at),
       termination_reason: contract.termination_reason ?? '',
       billing_interval: contract.billing_interval ?? '',
+      invoice_type: contract.invoice_type ?? '',
     });
     setIsEditing(false);
     setSaveError(null);
@@ -310,6 +326,23 @@ export default function ContractDetailModal({
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">發票類型</label>
+                <select
+                  value={editForm.invoice_type}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, invoice_type: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">—</option>
+                  {INVOICE_TYPE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="flex gap-2 pt-2">
                 <button
                   type="submit"
@@ -377,6 +410,12 @@ export default function ContractDetailModal({
                 <dt className="text-gray-500 font-medium">付款方式</dt>
                 <dd className="text-gray-900">
                   {getPaymentMethodLabel(contract.payment_method)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-gray-500 font-medium">發票類型</dt>
+                <dd className="text-gray-900">
+                  {getInvoiceTypeLabel(contract.invoice_type)}
                 </dd>
               </div>
               <div>

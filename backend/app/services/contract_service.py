@@ -104,6 +104,7 @@ class ContractService:
             signed_date=contract.signed_date,
             payment_method=contract.payment_method,
             next_billing_date=contract.next_billing_date,
+            invoice_type=contract.invoice_type,
             terminated_at=contract.terminated_at,
             termination_reason=contract.termination_reason,
         )
