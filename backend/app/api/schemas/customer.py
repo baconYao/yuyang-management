@@ -4,6 +4,13 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class CustomerStatus(str, Enum):
+    """Contract status enumeration"""
+
+    ACTIVE = "ACTIVE"
+    TERMINATED = "TERMINATED"
+
+
 class CustomerType(str, Enum):
     """Customer type enumeration"""
 
@@ -28,6 +35,9 @@ class BaseCustomer(BaseModel):
     address: str | None = Field(None, description="Address")
     primary_contact: str | None = Field(None, description="Primary contact person")  # noqa: E501
     customer_type: CustomerType | None = Field(None, description="Customer type")  # noqa: E501
+    status: CustomerStatus = Field(
+        default=CustomerStatus.ACTIVE, description="Customer status"
+    )
 
 
 class CustomerRead(BaseCustomer):
@@ -47,4 +57,6 @@ class CustomerWrite(BaseCustomer):
 class CustomerUpdate(BaseCustomer):
     """Customer information update schema"""
 
-    pass
+    status: CustomerStatus | None = Field(
+        None, description="Customer status (omit to leave unchanged)"
+    )

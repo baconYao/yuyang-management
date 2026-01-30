@@ -3,9 +3,8 @@
 Generate fake data for development and testing.
 
 This script generates:
-- 35 customers with different types
-- 5 customers without contracts
-- Remaining customers with 1-3 contracts each
+- 35 customers: 10 TERMINATED (no cooperation), 25 ACTIVE (with cooperation)
+- ACTIVE customers each have 1-3 contracts
 """
 
 import asyncio
@@ -21,7 +20,7 @@ from app.api.schemas.contract import (
     ContractStatus,
     PaymentMethod,
 )
-from app.api.schemas.customer import CustomerType
+from app.api.schemas.customer import CustomerStatus, CustomerType
 from app.config import db_settings
 from app.database.models.contract import Contract
 from app.database.models.customer import Customer
@@ -139,11 +138,15 @@ def generate_invoice_number() -> str:
     return f"{year}{number:08d}"
 
 
+NUM_TERMINATED = 10  # customers with no cooperation
+NUM_ACTIVE = 25  # customers with cooperation
+
+
 def generate_customer(index: int) -> Customer:
-    """Generate a fake customer."""
-    # Distribute customer types evenly
+    """Generate a fake customer. First 10 are TERMINATED, rest are ACTIVE."""
     customer_types = list(CustomerType)
     customer_type = customer_types[index % len(customer_types)]
+    status = CustomerStatus.TERMINATED if index < NUM_TERMINATED else CustomerStatus.ACTIVE
 
     company_name = COMPANY_NAMES[index % len(COMPANY_NAMES)]
     contact_name = CONTACT_NAMES[index % len(CONTACT_NAMES)]
@@ -159,6 +162,7 @@ def generate_customer(index: int) -> Customer:
         address=address,
         primary_contact=contact_name,
         customer_type=customer_type,
+        status=status,
         created_at=datetime.now() - timedelta(days=random.randint(30, 365)),
         updated_at=datetime.now() - timedelta(days=random.randint(0, 30)),
     )
@@ -277,9 +281,9 @@ async def generate_fake_data():
     async with async_session() as session:
         print("Generating fake data...")
 
-        # Generate 35 customers
+        # Generate 35 customers: 10 TERMINATED, 25 ACTIVE
         customers = []
-        for i in range(35):
+        for i in range(NUM_TERMINATED + NUM_ACTIVE):
             customer = generate_customer(i)
             customers.append(customer)
             session.add(customer)
@@ -287,35 +291,30 @@ async def generate_fake_data():
         await session.commit()
         print(f"✓ Created {len(customers)} customers")
 
-        # Generate contracts
-        # 5 customers without contracts
-        # Remaining 30 customers with 1-3 contracts each
+        # Generate contracts for ACTIVE customers only (indices 10-34)
         total_contracts = 0
         contract_index = 1
 
-        # First 5 customers: no contracts
-        print(
-            f"  - 5 customers without contracts (IDs: {[str(c.id)[:8] for c in customers[:5]]})"
-        )
+        print(f"  - {NUM_TERMINATED} customers without cooperation (TERMINATED)")
+        print(f"  - {NUM_ACTIVE} customers with cooperation (ACTIVE), 1-3 contracts each")
 
-        # Remaining 30 customers: 1-3 contracts each
-        for i in range(5, 35):
+        for i in range(NUM_TERMINATED, NUM_TERMINATED + NUM_ACTIVE):
             customer = customers[i]
             num_contracts = random.randint(1, 3)
-            for j in range(num_contracts):
+            for _ in range(num_contracts):
                 contract = generate_contract(customer.id, contract_index)
                 session.add(contract)
                 total_contracts += 1
                 contract_index += 1
 
         await session.commit()
-        print(f"✓ Created {total_contracts} contracts for 30 customers")
+        print(f"✓ Created {total_contracts} contracts for {NUM_ACTIVE} ACTIVE customers")
 
         print("\n" + "=" * 50)
         print("Summary:")
         print(f"  - Total customers: {len(customers)}")
-        print("  - Customers without contracts: 5")
-        print("  - Customers with contracts: 30")
+        print(f"  - TERMINATED (no cooperation): {NUM_TERMINATED}")
+        print(f"  - ACTIVE (with cooperation): {NUM_ACTIVE}")
         print(f"  - Total contracts: {total_contracts}")
         print("=" * 50)
         print("\n✓ Fake data generation completed!")

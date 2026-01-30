@@ -7,6 +7,8 @@ export enum CustomerType {
   OTHER = "OTHER",
 }
 
+export type CustomerStatus = 'ACTIVE' | 'TERMINATED';
+
 export interface Customer {
   id: string;
   customer_name: string | null;
@@ -17,6 +19,7 @@ export interface Customer {
   address: string | null;
   primary_contact: string | null;
   customer_type: CustomerType | null;
+  status?: CustomerStatus | null;
 }
 
 export interface Contract {

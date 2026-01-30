@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 from sqlalchemy.dialects import postgresql
 from sqlmodel import Column, Field, SQLModel
 
-from app.api.schemas.customer import CustomerType
+from app.api.schemas.customer import CustomerStatus, CustomerType
 
 
 class Customer(SQLModel, table=True):
@@ -39,3 +39,15 @@ class Customer(SQLModel, table=True):
     address: str
     primary_contact: str
     customer_type: CustomerType
+    status: CustomerStatus = Field(
+        default=CustomerStatus.ACTIVE,
+        sa_column=Column(
+            postgresql.ENUM(
+                CustomerStatus,
+                name="customerstatus",
+                create_type=True,
+            ),
+            nullable=False,
+            server_default="ACTIVE",
+        ),
+    )
