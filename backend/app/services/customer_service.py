@@ -75,6 +75,7 @@ class CustomerService:
             address=customer.address,
             primary_contact=customer.primary_contact,
             customer_type=customer.customer_type,
+            status=customer.status,
         )
 
         # Add to session and commit
