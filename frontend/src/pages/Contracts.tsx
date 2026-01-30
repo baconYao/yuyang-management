@@ -5,6 +5,24 @@ import ContractDetailModal from '../components/ContractDetailModal';
 import { getContractStatusDisplay } from '../utils/contractStatusDisplay';
 
 const ITEMS_PER_PAGE = 15;
+const DAYS_NEAR_END = 60;
+
+type ContractStatusFilter = 'ACTIVE' | 'OTHER' | 'ALL';
+
+function getDaysUntilEnd(contract: ContractWithCustomer): number | null {
+  if (!contract.end_date) return null;
+  const end = new Date(contract.end_date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  return Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function isExpiringSoon(contract: ContractWithCustomer): boolean {
+  if (contract.status !== 'ACTIVE') return false;
+  const days = getDaysUntilEnd(contract);
+  return days !== null && days >= 0 && days <= DAYS_NEAR_END;
+}
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—';
@@ -24,6 +42,7 @@ export default function Contracts() {
   const [contracts, setContracts] = useState<ContractWithCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ContractStatusFilter>('ACTIVE');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedContract, setSelectedContract] = useState<ContractWithCustomer | null>(null);
 
@@ -57,15 +76,34 @@ export default function Contracts() {
   }, []);
 
   const filteredContracts = useMemo(() => {
-    if (!searchTerm) return contracts;
-    const searchLower = searchTerm.toLowerCase();
-    return contracts.filter(
-      (contract) =>
-        contract.customer_name?.toLowerCase().includes(searchLower) ||
-        contract.contract_number?.toLowerCase().includes(searchLower) ||
-        contract.product_name?.toLowerCase().includes(searchLower)
-    );
-  }, [contracts, searchTerm]);
+    let result = contracts;
+
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      result = result.filter(
+        (contract) =>
+          contract.customer_name?.toLowerCase().includes(searchLower) ||
+          contract.contract_number?.toLowerCase().includes(searchLower) ||
+          contract.product_name?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    if (statusFilter === 'ACTIVE') {
+      result = result.filter((c) => c.status === 'ACTIVE');
+      result = [...result].sort((a, b) => {
+        const aSoon = isExpiringSoon(a) ? 0 : 1;
+        const bSoon = isExpiringSoon(b) ? 0 : 1;
+        if (aSoon !== bSoon) return aSoon - bSoon;
+        const aEnd = a.end_date ? new Date(a.end_date).getTime() : Infinity;
+        const bEnd = b.end_date ? new Date(b.end_date).getTime() : Infinity;
+        return aEnd - bEnd;
+      });
+    } else if (statusFilter === 'OTHER') {
+      result = result.filter((c) => c.status !== 'ACTIVE');
+    }
+
+    return result;
+  }, [contracts, searchTerm, statusFilter]);
 
   const totalPages = Math.ceil(filteredContracts.length / ITEMS_PER_PAGE);
   const paginatedContracts = useMemo(() => {
@@ -99,16 +137,34 @@ export default function Contracts() {
       <h1 className="text-3xl font-bold text-gray-800 mb-6">合約管理</h1>
 
       <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-        <input
-          type="text"
-          placeholder="搜尋客戶名稱、合約編號或產品名稱..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="搜尋客戶名稱、合約編號或產品名稱..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="sm:w-48">
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as ContractStatusFilter);
+                setCurrentPage(1);
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="ACTIVE">生效</option>
+              <option value="OTHER">其他</option>
+              <option value="ALL">全部</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
