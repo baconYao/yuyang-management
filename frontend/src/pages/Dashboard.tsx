@@ -11,17 +11,25 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // FIXME: 不需要把所有客戶和合約都撈出來，只需要撈出合作中的客戶和合約即可
         const [customers, contracts] = await Promise.all([
           customerApi.getAll(),
           contractApi.getAll(),
         ]);
 
-        setTotalCustomers(customers.length);
-        setTotalContracts(contracts.length);
+        // 客戶總數量：僅合作中 (ACTIVE)
+        const activeCustomers = customers.filter(
+          (c) => (c.status ?? 'ACTIVE') === 'ACTIVE'
+        );
+        setTotalCustomers(activeCustomers.length);
 
-        // Count customers by type
+        // 合約總數量：僅生效狀態 (ACTIVE)
+        const activeContracts = contracts.filter((c) => c.status === 'ACTIVE');
+        setTotalContracts(activeContracts.length);
+
+        // 客戶類型統計：依合作中的客戶
         const typeCount: Record<string, number> = {};
-        customers.forEach((customer) => {
+        activeCustomers.forEach((customer) => {
           const label = customer.customer_type
             ? getCustomerTypeLabel(customer.customer_type)
             : '未分類';
