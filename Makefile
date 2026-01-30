@@ -2,6 +2,7 @@
         prod-up prod-down prod-logs prod-build prod-restart prod-clean \
         dev-shell-api dev-shell-frontend dev-shell-db \
         prod-shell-api prod-shell-frontend prod-shell-db \
+        seed-data seed-data-dev seed-data-prod \
         clean-all docker-prune fix-build
 
 # Default target
@@ -69,6 +70,12 @@ dev-shell-db: ## Open PostgreSQL shell in development database
 dev-ps: ## Show development environment container status
 	docker-compose ps
 
+seed-data-dev: ## Generate fake data in development environment
+	@echo "$(BLUE)Generating fake data in development environment...$(NC)"
+	@docker-compose exec -T api python -m scripts.generate_fake_data || \
+		(echo "$(RED)Error: Make sure development environment is running (make dev-up)$(NC)" && exit 1)
+	@echo "$(GREEN)Fake data generated successfully!$(NC)"
+
 ##@ Production Environment
 
 prod-up: ## Start production environment
@@ -124,6 +131,12 @@ prod-shell-db: ## Open PostgreSQL shell in production database
 prod-ps: ## Show production environment container status
 	docker-compose -f docker-compose.prod.yml ps
 
+seed-data-prod: ## Generate fake data in production environment
+	@echo "$(BLUE)Generating fake data in production environment...$(NC)"
+	@docker-compose -f docker-compose.prod.yml exec -T api python -m scripts.generate_fake_data || \
+		(echo "$(RED)Error: Make sure production environment is running (make prod-up)$(NC)" && exit 1)
+	@echo "$(GREEN)Fake data generated successfully!$(NC)"
+
 ##@ Common Operations
 
 help: ## Display this help message
@@ -170,3 +183,16 @@ rebuild-prod: ## Rebuild and restart production environment
 	docker-compose -f docker-compose.prod.yml build --no-cache --pull
 	docker-compose -f docker-compose.prod.yml up -d
 	@echo "$(GREEN)Production environment rebuilt and started!$(NC)"
+
+seed-data: ## Generate fake data (auto-detects dev or prod environment)
+	@echo "$(BLUE)Detecting environment...$(NC)"
+	@if docker-compose ps api 2>/dev/null | grep -q "Up"; then \
+		echo "$(YELLOW)Development environment detected$(NC)"; \
+		$(MAKE) seed-data-dev; \
+	elif docker-compose -f docker-compose.prod.yml ps api 2>/dev/null | grep -q "Up"; then \
+		echo "$(YELLOW)Production environment detected$(NC)"; \
+		$(MAKE) seed-data-prod; \
+	else \
+		echo "$(RED)Error: No running environment detected. Please run 'make dev-up' or 'make prod-up' first$(NC)"; \
+		exit 1; \
+	fi

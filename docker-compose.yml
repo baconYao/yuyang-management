@@ -44,6 +44,8 @@ services:
     volumes:
       # Mount app directory for development hot reload
       - ./backend/app:/app/app
+      # Mount scripts directory for data generation
+      - ./backend/scripts:/app/scripts
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s

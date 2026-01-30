@@ -19,6 +19,8 @@ RUN uv pip install --system --no-cache -e .
 
 # Copy application code
 COPY app/ ./app/
+# Copy scripts directory
+COPY scripts/ ./scripts/
 
 # Change ownership to non-root user
 RUN chown -R appuser:appuser /app
