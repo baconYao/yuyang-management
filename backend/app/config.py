@@ -13,7 +13,7 @@ class DatabaseSettings(BaseSettings):
     POSTGRES_PORT: int = Field(default=5432)
     POSTGRES_USER: str = Field(default="postgres")
     POSTGRES_PASSWORD: str = Field(default="postgres")
-    POSTGRES_DB: str = Field(default="test_db")
+    POSTGRES_DB: str = Field(default="yuyang_db")
 
     model_config = _base_config
 

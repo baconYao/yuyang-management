@@ -159,10 +159,11 @@ POSTGRES_SERVER=localhost
 POSTGRES_PORT=5432
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
-POSTGRES_DB=test_db
+POSTGRES_DB=yuyang_db
 ```
 
 **注意**：
+
 - `.env` 檔案應放在 `backend` 目錄下
 - 請根據實際的資料庫環境調整上述配置值
 - 建議將 `.env` 加入 `.gitignore`，避免將敏感資訊提交到版本控制系統
@@ -176,6 +177,7 @@ alembic revision --autogenerate -m "描述你的變更"
 ```
 
 **重要提醒**：
+
 - 使用 `--autogenerate` 參數時，Alembic 會自動偵測模型變更並生成遷移腳本
 - 請務必在執行此命令前，確保所有模型都已正確匯入到 `migrations/env.py` 中
 - 生成遷移檔案後，請仔細檢查 `migrations/versions/` 目錄下的遷移腳本，確認變更正確無誤
@@ -193,16 +195,26 @@ alembic upgrade head
 ### 其他常用命令
 
 - 查看當前資料庫版本：
+
   ```bash
   alembic current
   ```
 
 - 查看遷移歷史：
+
   ```bash
   alembic history
   ```
 
+- 標記版本至最新的 head：
+
+  ```bash
+  # 當 DB 已經和 head 一樣的狀態，只是版本沒被標成 head。
+  alembic stamp head
+  ```
+
 - 降級到上一個版本：
+
   ```bash
   alembic downgrade -1
   ```
