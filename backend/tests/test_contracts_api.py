@@ -957,7 +957,7 @@ async def test_update_contract_partial_update(client: AsyncClient, test_session)
 
     # Update only status via API
     update_data = {
-        "status": "SUSPENDED",
+        "status": "TRIAL",
     }
 
     response = await client.patch(f"/api/v1/contracts/{contract_id}", json=update_data)
@@ -965,7 +965,7 @@ async def test_update_contract_partial_update(client: AsyncClient, test_session)
     updated_contract = response.json()
 
     # Verify only status was updated
-    assert updated_contract["status"] == "SUSPENDED"
+    assert updated_contract["status"] == "TRIAL"
     assert updated_contract["billing_interval"] == original_billing_interval
     assert updated_contract["payment_method"] == original_payment_method
     assert updated_contract["notes"] == "Original Notes"

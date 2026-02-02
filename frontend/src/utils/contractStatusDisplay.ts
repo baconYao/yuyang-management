@@ -20,8 +20,8 @@ export function getContractStatusDisplay(
     }
     return { label: "生效", className: "bg-green-100 text-green-800" };
   }
-  if (status === "EXPIRED") {
-    return { label: "到期 (自動終止)", className: "bg-gray-200 text-gray-700" };
+  if (status === "ENDED") {
+    return { label: "結束", className: "bg-gray-200 text-gray-700" };
   }
   if (status === "TERMINATED") {
     return { label: "終止", className: "bg-gray-200 text-gray-700" };
@@ -29,8 +29,8 @@ export function getContractStatusDisplay(
   if (status === "PENDING") {
     return { label: "合約待簽署", className: "bg-blue-200 text-blue-700" };
   }
-  if (status === "SUSPENDED") {
-    return { label: "暫停", className: "bg-gray-200 text-gray-700" };
+  if (status === "TRIAL") {
+    return { label: "試用", className: "bg-amber-100 text-amber-800" };
   }
   return { label: status, className: "bg-blue-100 text-blue-800" };
 }

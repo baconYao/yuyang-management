@@ -10,14 +10,11 @@ from pydantic import BaseModel, ConfigDict, Field
 class ContractStatus(str, Enum):
     """Contract status enumeration"""
 
-    # FIXME: 新增試用，結束 (正常結束)。移除 suspend, expired
     ACTIVE = "ACTIVE"  # 生效
-    EXPIRED = "EXPIRED"
     TERMINATED = "TERMINATED"  # 終止 (提前結束)
     PENDING = "PENDING"  # 待簽署
-    SUSPENDED = "SUSPENDED"
-    # 試用
-    # 結束 (正常結束)
+    TRIAL = "TRIAL"  # 試用
+    ENDED = "ENDED"  # 結束 (正常結束)
 
 
 class PaymentMethod(str, Enum):

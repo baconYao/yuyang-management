@@ -7,7 +7,13 @@ import { getContractStatusDisplay } from '../utils/contractStatusDisplay';
 const ITEMS_PER_PAGE = 15;
 const DAYS_NEAR_END = 60;
 
-type ContractStatusFilter = 'ACTIVE' | 'OTHER' | 'ALL';
+type ContractStatusFilter =
+  | 'ACTIVE'
+  | 'TRIAL'
+  | 'PENDING'
+  | 'TERMINATED'
+  | 'ENDED'
+  | 'ALL';
 
 function getDaysUntilEnd(contract: ContractWithCustomer): number | null {
   if (!contract.end_date) return null;
@@ -88,18 +94,18 @@ export default function Contracts() {
       );
     }
 
-    if (statusFilter === 'ACTIVE') {
-      result = result.filter((c) => c.status === 'ACTIVE');
-      result = [...result].sort((a, b) => {
-        const aSoon = isExpiringSoon(a) ? 0 : 1;
-        const bSoon = isExpiringSoon(b) ? 0 : 1;
-        if (aSoon !== bSoon) return aSoon - bSoon;
-        const aEnd = a.end_date ? new Date(a.end_date).getTime() : Infinity;
-        const bEnd = b.end_date ? new Date(b.end_date).getTime() : Infinity;
-        return aEnd - bEnd;
-      });
-    } else if (statusFilter === 'OTHER') {
-      result = result.filter((c) => c.status !== 'ACTIVE');
+    if (statusFilter !== 'ALL') {
+      result = result.filter((c) => c.status === statusFilter);
+      if (statusFilter === 'ACTIVE') {
+        result = [...result].sort((a, b) => {
+          const aSoon = isExpiringSoon(a) ? 0 : 1;
+          const bSoon = isExpiringSoon(b) ? 0 : 1;
+          if (aSoon !== bSoon) return aSoon - bSoon;
+          const aEnd = a.end_date ? new Date(a.end_date).getTime() : Infinity;
+          const bEnd = b.end_date ? new Date(b.end_date).getTime() : Infinity;
+          return aEnd - bEnd;
+        });
+      }
     }
 
     return result;
@@ -160,7 +166,10 @@ export default function Contracts() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="ACTIVE">生效</option>
-              <option value="OTHER">其他</option>
+              <option value="TRIAL">試用</option>
+              <option value="PENDING">待簽署</option>
+              <option value="TERMINATED">終止</option>
+              <option value="ENDED">結束</option>
               <option value="ALL">全部</option>
             </select>
           </div>

@@ -29,17 +29,20 @@ function toDateInputValue(iso: string | null | undefined): string {
 
 const CONTRACT_STATUS_OPTIONS = [
   { value: 'ACTIVE', label: '生效' },
-  { value: 'EXPIRED', label: '已過期' },
   { value: 'TERMINATED', label: '終止' },
-  { value: 'PENDING', label: '待處理' },
-  { value: 'SUSPENDED', label: '暫停' },
+  { value: 'PENDING', label: '待簽署' },
+  { value: 'TRIAL', label: '試用' },
+  { value: 'ENDED', label: '結束' },
 ];
 
 const BILLING_INTERVAL_OPTIONS = [
+  { value: '1', label: '1 個月' },
+  { value: '2', label: '2 個月' },
   { value: '3', label: '3 個月' },
   { value: '6', label: '6 個月' },
   { value: '12', label: '12 個月' },
   { value: '24', label: '24 個月' },
+  { value: '36', label: '36 個月' },
 ];
 
 const PAYMENT_METHOD_OPTIONS = [

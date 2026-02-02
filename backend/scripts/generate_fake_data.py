@@ -191,11 +191,11 @@ def generate_contract(customer_id: str, contract_index: int) -> Contract:
     # Status based on dates
     now = datetime.now()
     if end_date < now:
-        status = random.choice([ContractStatus.EXPIRED, ContractStatus.TERMINATED])
+        status = random.choice([ContractStatus.ENDED, ContractStatus.TERMINATED])
     elif start_date > now:
         status = ContractStatus.PENDING
     else:
-        status = random.choice([ContractStatus.ACTIVE, ContractStatus.SUSPENDED])
+        status = random.choice([ContractStatus.ACTIVE, ContractStatus.TRIAL])
 
     # Monthly rent (in TWD)
     monthly_rent = random.choice([5000, 8000, 10000, 12000, 15000, 20000, 25000, 30000])
