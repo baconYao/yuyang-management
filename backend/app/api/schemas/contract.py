@@ -64,7 +64,9 @@ class BaseContract(BaseModel):
     )
     status: ContractStatus = Field(..., description="Contract status")
     contract_number: str | None = Field(
-        None, description="Contract number (e.g., CONTRACT-2024-001)"
+        None,
+        description="Contract number (e.g., C-2026-01-xsdwc); server-generated on create.",  # noqa: E501
+        max_length=15,
     )
     # 合約簽署日期，不為合約開始日期
     signed_date: datetime | None = Field(None, description="Contract signed date")

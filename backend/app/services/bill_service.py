@@ -20,7 +20,7 @@ class InvalidStatusTransitionError(ValueError):
 
 
 def _generate_bill_number() -> str:
-    """Generate bill_number: B-<Year>-<Month>-<5 random lowercase letters>."""
+    """Generate bill_number: B-<Year>-<Month>-<5 random uppercase letters>."""
     today = date.today()
     suffix = "".join(random.choices(string.ascii_uppercase, k=5))
     return f"B-{today.year}-{today.month:02d}-{suffix}"

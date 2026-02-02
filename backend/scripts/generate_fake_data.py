@@ -10,6 +10,7 @@ This script generates:
 
 import asyncio
 import random
+import string
 from datetime import datetime, timedelta
 from uuid import uuid4
 
@@ -215,9 +216,9 @@ def generate_contract(customer_id: str, contract_index: int) -> Contract:
             last_billing += timedelta(days=interval_months * 30)
         next_billing_date = last_billing
 
-    # Contract number
-    year = start_date.year
-    contract_number = f"CONTRACT-{year}-{contract_index:03d}"
+    # Contract number (same format as server: C-YYYY-MM-XXXXX)
+    suffix = "".join(random.choices(string.ascii_uppercase, k=5))
+    contract_number = f"C-{start_date.year}-{start_date.month:02d}-{suffix}"
 
     # Notes (optional)
     notes = None
