@@ -82,14 +82,23 @@ class Bill(BaseModel):
         定義合法的狀態轉移路徑 (State Machine)
         """
         allowed_paths = {
-            BillStatus.DRAFT: [BillStatus.SENT, BillStatus.CANCELLED],
+            BillStatus.DRAFT: [
+                BillStatus.DRAFT,
+                BillStatus.SENT,
+                BillStatus.CANCELLED,
+            ],
             BillStatus.SENT: [
+                BillStatus.SENT,
                 BillStatus.PROCESSING,
                 BillStatus.PAID,
                 BillStatus.OVERDUE,
                 BillStatus.CANCELLED,
             ],
-            BillStatus.PROCESSING: [BillStatus.PAID, BillStatus.SENT],
+            BillStatus.PROCESSING: [
+                BillStatus.SENT,
+                BillStatus.PROCESSING,
+                BillStatus.PAID,
+            ],
             BillStatus.OVERDUE: [BillStatus.PAID, BillStatus.CANCELLED],
             BillStatus.PAID: [],  # 已結案不可變動
             BillStatus.CANCELLED: [],  # 已作廢不可變動
@@ -122,7 +131,9 @@ class BillUpdate(BaseModel):
     """Only these fields are allowed to be updated."""
 
     # FIXME: 新增tax_amount, monthly_rent 保留更改的能力
-    status: BillStatus | None = Field(None, description="Bill status")
+    status: BillStatus = Field(
+        ..., description="Bill status (required, cannot be null)"
+    )
     notes: str | None = Field(
         None,
         max_length=NOTES_MAX_LENGTH,
