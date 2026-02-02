@@ -3,7 +3,6 @@ from uuid import UUID
 
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Column, Field, SQLModel
 
 from app.api.schemas.bill import BillStatus
@@ -49,10 +48,10 @@ class Bill(SQLModel, table=True):
         default=BillStatus.DRAFT,
         description="Bill status",
     )
-    notes: list[dict] = Field(
-        sa_column=Column(JSONB, nullable=False, server_default="[]"),
-        default_factory=list,
-        description="List of bill notes (content, created_at)",
+    notes: str = Field(
+        sa_column=Column(String(200), nullable=False, server_default=""),
+        default="",
+        description="Notes (plain text, max 200 characters)",
     )
     created_at: datetime = Field(
         sa_column=Column(

@@ -26,21 +26,6 @@ def _generate_bill_number() -> str:
     return f"B-{today.year}-{today.month:02d}-{suffix}"
 
 
-def _notes_to_db(notes: list) -> list[dict]:
-    """Convert schema notes (list[BillNote]) to JSON-serializable list of dicts."""  # noqa: E501
-    result = []
-    for n in notes:
-        if hasattr(n, "model_dump"):
-            result.append(n.model_dump(mode="json"))
-        elif isinstance(n, dict):
-            result.append(n)
-        else:
-            result.append(
-                {"content": getattr(n, "content", str(n)), "created_at": None}
-            )
-    return result
-
-
 class BillService:
     """Bill service for managing bill data in database"""
 
@@ -130,7 +115,7 @@ class BillService:
             contract_id=bill.contract_id,
             amount=bill.amount,
             status=bill.status,
-            notes=_notes_to_db(bill.notes),
+            notes=bill.notes or "",
         )
         self._session.add(db_bill)
         await self._session.commit()
@@ -173,8 +158,6 @@ class BillService:
                     f"Invalid status transition from {db_bill.status!s} to {new_status!s}"  # noqa: E501
                 )
 
-        if "notes" in update_data:
-            update_data["notes"] = _notes_to_db(update_data["notes"])
         for field, value in update_data.items():
             setattr(db_bill, field, value)
 

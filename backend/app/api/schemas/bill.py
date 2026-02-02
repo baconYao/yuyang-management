@@ -24,9 +24,7 @@ class BillStatus(str, Enum):
     CANCELLED = "CANCELLED"  # 已作廢。因故取消交易，例如合約終止、客戶取消訂單等。
 
 
-class BillNote(BaseModel):
-    content: str
-    created_at: datetime = Field(default_factory=datetime.now)
+NOTES_MAX_LENGTH = 200
 
 
 class Bill(BaseModel):
@@ -35,7 +33,11 @@ class Bill(BaseModel):
     # FIXME: 新增tax_amount, monthly_rent, InvoiceType
     amount: float = Field(..., gt=0, description="Total billing amount")
     status: BillStatus = Field(default=BillStatus.DRAFT)
-    notes: list[BillNote] = []
+    notes: str = Field(
+        "",
+        max_length=NOTES_MAX_LENGTH,
+        description="Notes (plain text, max 200 characters)",
+    )
     bill_number: str | None = Field(
         None,
         description="Bill number, primary key (e.g., B-2024-11-asdfg); server-generated on create.",  # noqa: E501
@@ -109,7 +111,11 @@ class BillWrite(BaseModel):
     # FIXME: 新增tax_amount, monthly_rent, InvoiceType
     amount: float = Field(..., gt=0, description="Total billing amount")
     status: BillStatus = Field(default=BillStatus.DRAFT)
-    notes: list[BillNote] = []
+    notes: str = Field(
+        "",
+        max_length=NOTES_MAX_LENGTH,
+        description="Notes (plain text, max 200 characters)",
+    )
 
 
 class BillUpdate(BaseModel):
@@ -117,7 +123,11 @@ class BillUpdate(BaseModel):
 
     # FIXME: 新增tax_amount, monthly_rent 保留更改的能力
     status: BillStatus | None = Field(None, description="Bill status")
-    notes: list[BillNote] | None = Field(None, description="Bill notes")
+    notes: str | None = Field(
+        None,
+        max_length=NOTES_MAX_LENGTH,
+        description="Notes (plain text, max 200 characters)",
+    )
     due_date: datetime | None = Field(None, description="Payment deadline")
     sent_at: datetime | None = Field(None, description="帳單寄出時間")
     paid_at: datetime | None = Field(None, description="客戶付款時間")
