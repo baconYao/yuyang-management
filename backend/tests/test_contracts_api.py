@@ -615,6 +615,54 @@ async def test_create_contract_invalid_billing_interval(
 
 
 @pytest.mark.asyncio
+async def test_create_contract_with_new_billing_intervals(
+    client: AsyncClient, test_session
+):
+    """
+    Test POST /api/v1/contracts/ accepts new billing_interval values: 1, 2, 24, 36.
+    """
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+    test_customer = Customer(
+        customer_name="New Interval Customer",
+        invoice_title="New Interval Invoice",
+        invoice_number="INV002",
+        contact_phone="0944444444",
+        messaging_app_line="new_interval_line",
+        address="New Interval Address",
+        primary_contact="New Contact",
+        customer_type=CustomerType.COMPANY,
+    )
+    test_session.add(test_customer)
+    await test_session.commit()
+    await test_session.refresh(test_customer)
+
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=365)
+
+    for billing_interval in ("1", "2", "24", "36"):
+        contract_data = {
+            "customer_id": str(test_customer.id),
+            "product_name": f"Product {billing_interval}m",
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "monthly_rent": 10000,
+            "billing_interval": billing_interval,
+            "status": "ACTIVE",
+        }
+        response = await client.post("/api/v1/contracts/", json=contract_data)
+        assert response.status_code == 201, response.json()
+        created = response.json()
+        assert created["billing_interval"] == billing_interval
+
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
 async def test_create_contract_product_name_too_long(client: AsyncClient, test_session):
     """
     Test POST /api/v1/contracts/ returns 422 when product_name exceeds 30 characters

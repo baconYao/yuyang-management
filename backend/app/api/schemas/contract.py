@@ -32,11 +32,13 @@ class PaymentMethod(str, Enum):
 class BillingInterval(str, Enum):
     """Billing interval enumeration"""
 
-    # FIXME: 1, 2, 36
+    ONE_MONTH = "1"
+    TWO_MONTHS = "2"
     THREE_MONTHS = "3"
     SIX_MONTHS = "6"
     TWELVE_MONTHS = "12"
     TWENTY_FOUR_MONTHS = "24"
+    THIRTY_SIX_MONTHS = "36"
 
 
 class InvoiceType(str, Enum):
