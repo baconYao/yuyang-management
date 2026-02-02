@@ -30,18 +30,23 @@ class BillNote(BaseModel):
 
 
 class Bill(BaseModel):
-    bill_id: UUID = Field(..., description="Unique invoice identifier")
     customer_id: UUID = Field(..., description="Customer ID (foreign key)")
     contract_id: UUID = Field(..., description="Contract ID (foreign key)")
+    # FIXME: 新增tax_amount, monthly_rent, InvoiceType
     amount: float = Field(..., gt=0, description="Total billing amount")
     status: BillStatus = Field(default=BillStatus.DRAFT)
     notes: list[BillNote] = []
+    bill_number: str | None = Field(
+        None,
+        description="Bill number, primary key (e.g., B-2024-11-asdfg); server-generated on create.",  # noqa: E501
+        max_length=15,
+    )
 
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
-    due_date: datetime = Field(..., description="Payment deadline")
-    sent_at: datetime | None = None
-    paid_at: datetime | None = None
+    due_date: datetime | None = Field(None, description="Payment deadline")
+    sent_at: datetime | None = None  # 帳單寄出時間
+    paid_at: datetime | None = None  # 客戶付款時間
 
     @computed_field
     @property
@@ -91,16 +96,28 @@ class Bill(BaseModel):
 
 
 class BillRead(Bill):
-    id: UUID | None = Field(None, description="Bill ID")
+    bill_number: str = Field(..., description="Bill number (primary key)")
     created_at: datetime | None = Field(None, description="Bill creation time")
     updated_at: datetime | None = Field(None, description="Bill last update time")  # noqa: E501
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class BillWrite(Bill):
-    pass
+class BillWrite(BaseModel):
+    customer_id: UUID = Field(..., description="Customer ID (foreign key)")
+    contract_id: UUID = Field(..., description="Contract ID (foreign key)")
+    # FIXME: 新增tax_amount, monthly_rent, InvoiceType
+    amount: float = Field(..., gt=0, description="Total billing amount")
+    status: BillStatus = Field(default=BillStatus.DRAFT)
+    notes: list[BillNote] = []
 
 
-class BillUpdate(Bill):
-    pass
+class BillUpdate(BaseModel):
+    """Only these fields are allowed to be updated."""
+
+    # FIXME: 新增tax_amount, monthly_rent 保留更改的能力
+    status: BillStatus | None = Field(None, description="Bill status")
+    notes: list[BillNote] | None = Field(None, description="Bill notes")
+    due_date: datetime | None = Field(None, description="Payment deadline")
+    sent_at: datetime | None = Field(None, description="帳單寄出時間")
+    paid_at: datetime | None = Field(None, description="客戶付款時間")

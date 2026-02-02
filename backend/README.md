@@ -210,6 +210,7 @@ alembic upgrade head
 
   ```bash
   # 當 DB 已經和 head 一樣的狀態，只是版本沒被標成 head。
+  # 當透過 Make file 啟動 docker-compose 時，DB 的欄位不是透過 alembic 建立，而是透過 backend 建立。因此 alembic 會認為當前 head 依然在 base
   alembic stamp head
   ```
 

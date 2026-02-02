@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class ContractStatus(str, Enum):
     """Contract status enumeration"""
 
+    # FIXME: 新增試用，結束 (正常結束)。移除 suspend, expired
     ACTIVE = "ACTIVE"  # 生效
     EXPIRED = "EXPIRED"
     TERMINATED = "TERMINATED"  # 終止 (提前結束)
@@ -31,6 +32,7 @@ class PaymentMethod(str, Enum):
 class BillingInterval(str, Enum):
     """Billing interval enumeration"""
 
+    # FIXME: 1, 2, 36
     THREE_MONTHS = "3"
     SIX_MONTHS = "6"
     TWELVE_MONTHS = "12"

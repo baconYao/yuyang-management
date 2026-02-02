@@ -1,7 +1,7 @@
 from datetime import datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, String
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Column, Field, SQLModel
@@ -12,20 +12,9 @@ from app.api.schemas.bill import BillStatus
 class Bill(SQLModel, table=True):
     __tablename__ = "bill"
 
-    id: UUID = Field(
-        sa_column=Column(
-            postgresql.UUID,
-            default=uuid4,
-            primary_key=True,
-        )
-    )
-    bill_id: UUID = Field(
-        sa_column=Column(
-            postgresql.UUID,
-            nullable=False,
-            unique=True,
-        ),
-        description="Unique invoice identifier",
+    bill_number: str = Field(
+        sa_column=Column(String(15), primary_key=True),
+        description="Bill number (primary key, e.g., B-2024-11-asdfg)",
     )
     customer_id: UUID = Field(
         sa_column=Column(
@@ -80,8 +69,9 @@ class Bill(SQLModel, table=True):
         ),
         description="Last update time",
     )
-    due_date: datetime = Field(
-        sa_column=Column(postgresql.TIMESTAMP, nullable=False),
+    due_date: datetime | None = Field(
+        sa_column=Column(postgresql.TIMESTAMP, nullable=True),
+        default=None,
         description="Payment deadline",
     )
     sent_at: datetime | None = Field(
