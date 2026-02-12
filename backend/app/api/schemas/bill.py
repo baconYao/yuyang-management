@@ -12,6 +12,8 @@ from pydantic import (
     model_validator,
 )
 
+from app.api.schemas.contract import InvoiceType
+
 
 class BillStatus(str, Enum):
     DRAFT = "DRAFT"  # 待寄送/草稿。系統已產生帳單金額，但還沒發送給客戶（檢查期）。
@@ -30,8 +32,13 @@ NOTES_MAX_LENGTH = 200
 class Bill(BaseModel):
     customer_id: UUID = Field(..., description="Customer ID (foreign key)")
     contract_id: UUID = Field(..., description="Contract ID (foreign key)")
-    # FIXME: 新增tax_amount, monthly_rent, InvoiceType
     amount: float = Field(..., gt=0, description="Total billing amount")
+    tax_amount: float = Field(0, ge=0, description="Tax amount")
+    monthly_rent: float = Field(..., ge=0, description="Monthly rent")
+    invoice_type: InvoiceType = Field(
+        default=InvoiceType.NO_INVOICE,
+        description="Invoice type (e.g. no invoice, duplicate/triple uniform invoice)",
+    )
     status: BillStatus = Field(default=BillStatus.DRAFT)
     notes: str = Field(
         "",
@@ -117,8 +124,13 @@ class BillRead(Bill):
 class BillWrite(BaseModel):
     customer_id: UUID = Field(..., description="Customer ID (foreign key)")
     contract_id: UUID = Field(..., description="Contract ID (foreign key)")
-    # FIXME: 新增tax_amount, monthly_rent, InvoiceType
     amount: float = Field(..., gt=0, description="Total billing amount")
+    tax_amount: float = Field(0, ge=0, description="Tax amount")
+    monthly_rent: float = Field(..., ge=0, description="Monthly rent")
+    invoice_type: InvoiceType = Field(
+        default=InvoiceType.NO_INVOICE,
+        description="Invoice type (e.g. no invoice, duplicate/triple uniform invoice)",
+    )
     status: BillStatus = Field(default=BillStatus.DRAFT)
     notes: str = Field(
         "",
@@ -130,7 +142,6 @@ class BillWrite(BaseModel):
 class BillUpdate(BaseModel):
     """Only these fields are allowed to be updated."""
 
-    # FIXME: 新增tax_amount, monthly_rent 保留更改的能力
     status: BillStatus = Field(
         ..., description="Bill status (required, cannot be null)"
     )
@@ -138,6 +149,11 @@ class BillUpdate(BaseModel):
         None,
         max_length=NOTES_MAX_LENGTH,
         description="Notes (plain text, max 200 characters)",
+    )
+    tax_amount: float | None = Field(None, ge=0, description="Tax amount")
+    monthly_rent: float | None = Field(None, ge=0, description="Monthly rent")
+    invoice_type: InvoiceType | None = Field(
+        None, description="Invoice type (e.g. no invoice, duplicate/triple uniform invoice)"
     )
     due_date: datetime | None = Field(None, description="Payment deadline")
     sent_at: datetime | None = Field(None, description="帳單寄出時間")

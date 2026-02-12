@@ -114,6 +114,9 @@ class BillService:
             customer_id=bill.customer_id,
             contract_id=bill.contract_id,
             amount=bill.amount,
+            tax_amount=bill.tax_amount,
+            monthly_rent=bill.monthly_rent,
+            invoice_type=bill.invoice_type,
             status=bill.status,
             notes=bill.notes or "",
         )

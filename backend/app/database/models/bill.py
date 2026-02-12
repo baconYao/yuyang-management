@@ -6,6 +6,7 @@ from sqlalchemy.dialects import postgresql
 from sqlmodel import Column, Field, SQLModel
 
 from app.api.schemas.bill import BillStatus
+from app.api.schemas.contract import InvoiceType
 
 
 class Bill(SQLModel, table=True):
@@ -34,6 +35,28 @@ class Bill(SQLModel, table=True):
     amount: float = Field(
         sa_column=Column(postgresql.DOUBLE_PRECISION, nullable=False),
         description="Total billing amount",
+    )
+    tax_amount: float = Field(
+        sa_column=Column(postgresql.DOUBLE_PRECISION, nullable=False, server_default="0"),
+        default=0.0,
+        description="Tax amount",
+    )
+    monthly_rent: float = Field(
+        sa_column=Column(postgresql.DOUBLE_PRECISION, nullable=False),
+        description="Monthly rent",
+    )
+    invoice_type: InvoiceType = Field(
+        sa_column=Column(
+            postgresql.ENUM(
+                InvoiceType,
+                name="invoicetype",
+                create_type=False,
+            ),
+            nullable=False,
+            server_default="NO_INVOICE",
+        ),
+        default=InvoiceType.NO_INVOICE,
+        description="Invoice type (e.g. no invoice, duplicate/triple uniform invoice)",
     )
     status: BillStatus = Field(
         sa_column=Column(
