@@ -5,9 +5,6 @@ from datetime import datetime, timedelta
 from uuid import uuid4
 
 import pytest
-
-# Server-generated contract_number format: C-YYYY-MM-XXXXX (5 uppercase letters)
-CONTRACT_NUMBER_PATTERN = re.compile(r"^C-\d{4}-\d{2}-[A-Z]{5}$")
 import pytest_asyncio
 from sqlalchemy import delete
 
@@ -22,6 +19,9 @@ from app.api.schemas.customer import CustomerType
 from app.database.models.contract import Contract
 from app.database.models.customer import Customer
 from app.services.contract_service import ContractService
+
+# Server-generated contract_number format: C-YYYY-MM-XXXXX (5 uppercase letters)
+CONTRACT_NUMBER_PATTERN = re.compile(r"^C-\d{4}-\d{2}-[A-Z]{5}$")
 
 
 @pytest_asyncio.fixture(scope="function")
