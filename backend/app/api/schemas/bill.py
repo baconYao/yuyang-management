@@ -50,6 +50,11 @@ class Bill(BaseModel):
         description="Bill number, primary key (e.g., B-2024-11-asdfg); server-generated on create.",  # noqa: E501
         max_length=15,
     )
+    previous_bill_number: str | None = Field(
+        None,
+        description="Bill number of the previous bill under the same contract; null for the first bill.",
+        max_length=15,
+    )
 
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)

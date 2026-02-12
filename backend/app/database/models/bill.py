@@ -76,6 +76,18 @@ class Bill(SQLModel, table=True):
         default="",
         description="Notes (plain text, max 200 characters)",
     )
+    previous_bill_number: str | None = Field(
+        default=None,
+        sa_column=Column(
+            String(15),
+            ForeignKey("bill.bill_number"),
+            nullable=True,
+        ),
+        description=(
+            "Bill number of the previous bill under the same contract; "
+            "null for the first bill."
+        ),
+    )
     created_at: datetime = Field(
         sa_column=Column(
             postgresql.TIMESTAMP,

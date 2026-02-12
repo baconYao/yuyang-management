@@ -4,7 +4,7 @@ import string
 from datetime import date
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.bill import BillRead, BillUpdate, BillWrite
@@ -109,6 +109,15 @@ class BillService:
             )
             return None
 
+        # System auto-fill: previous bill under the same contract (latest by created_at)
+        prev_result = await self._session.execute(
+            select(Bill.bill_number)
+            .where(Bill.contract_id == bill.contract_id)
+            .order_by(desc(Bill.created_at))
+            .limit(1)
+        )
+        previous_bill_number = prev_result.scalar_one_or_none()
+
         db_bill = Bill(
             bill_number=_generate_bill_number(),
             customer_id=bill.customer_id,
@@ -119,6 +128,7 @@ class BillService:
             invoice_type=bill.invoice_type,
             status=bill.status,
             notes=bill.notes or "",
+            previous_bill_number=previous_bill_number,
         )
         self._session.add(db_bill)
         await self._session.commit()
