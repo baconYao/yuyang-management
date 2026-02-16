@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { contractApi } from '../services/api';
-import type { Contract, ContractWithCustomer } from '../types';
+import { useCallback, useEffect, useState } from 'react';
+import { billApi, contractApi } from '../services/api';
+import type { Bill, Contract, ContractWithCustomer } from '../types';
+import { getBillStatusDisplay } from '../utils/billStatusDisplay';
 import { getContractStatusDisplay } from '../utils/contractStatusDisplay';
 
 function formatDate(iso: string | null | undefined): string {
@@ -120,6 +121,25 @@ export default function ContractDetailModal({
   const [editForm, setEditForm] = useState(initialEditForm);
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [bills, setBills] = useState<Bill[]>([]);
+  const [billsLoading, setBillsLoading] = useState(false);
+
+  const fetchBills = useCallback(async (contractId: string) => {
+    setBillsLoading(true);
+    try {
+      const list = await billApi.getByContractId(contractId);
+      const sorted = [...list].sort((a, b) => {
+        const at = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bt = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return bt - at;
+      });
+      setBills(sorted);
+    } catch {
+      setBills([]);
+    } finally {
+      setBillsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!contract) return;
@@ -135,7 +155,8 @@ export default function ContractDetailModal({
     });
     setIsEditing(false);
     setSaveError(null);
-  }, [contract]);
+    fetchBills(contract.id);
+  }, [contract, fetchBills]);
 
   if (!contract) return null;
 
@@ -364,6 +385,7 @@ export default function ContractDetailModal({
               </div>
             </form>
           ) : (
+            <>
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <div>
                 <dt className="text-gray-500 font-medium">合約編號</dt>
@@ -438,6 +460,60 @@ export default function ContractDetailModal({
                 <dd className="text-gray-900">{contract.notes || '—'}</dd>
               </div>
             </dl>
+
+            <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">帳單列表</h3>
+            {billsLoading ? (
+              <div className="text-gray-500 py-4">載入帳單中...</div>
+            ) : bills.length === 0 ? (
+              <div className="text-gray-500 py-4">此合約尚無帳單</div>
+            ) : (
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        帳單編號
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        起始日期
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        總金額
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        狀態
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {bills.map((bill) => {
+                      const statusDisplay = getBillStatusDisplay(bill);
+                      return (
+                        <tr key={bill.bill_number} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-2 text-sm text-gray-900">
+                            {bill.bill_number}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-700 whitespace-nowrap">
+                            {formatDate(bill.created_at)}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-700">
+                            ${bill.amount}
+                          </td>
+                          <td className="px-4 py-2 text-sm">
+                            <span
+                              className={`px-2 py-0.5 text-xs font-medium rounded ${statusDisplay.className}`}
+                            >
+                              {statusDisplay.label}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            </>
           )}
         </div>
       </div>

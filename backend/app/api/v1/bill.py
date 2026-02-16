@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.dependencies import BillServiceDep
-from app.api.schemas.bill import BillRead, BillUpdate, BillWrite
+from app.api.schemas.bill import BillRead, BillStatus, BillUpdate, BillWrite
 from app.services.bill_service import InvalidStatusTransitionError
 
 router = APIRouter(prefix="/bills", tags=["Bills"])
@@ -36,6 +36,35 @@ async def create_bill(bill: BillWrite, service: BillServiceDep):
     return created
 
 
+# List route must be before /{bill_number} so GET /bills/?status=...
+# is not matched as bill_number=""
+@router.get("/", response_model=list[BillRead])
+async def get_bills(
+    service: BillServiceDep,
+    customer_id: UUID | None = Query(
+        None, description="Optional customer ID to filter bills"
+    ),
+    contract_id: UUID | None = Query(
+        None, description="Optional contract ID to filter bills"
+    ),
+    status: list[BillStatus] | None = Query(
+        None,
+        description="Optional list of statuses to filter bills (e.g. DRAFT, PAID)",  # noqa: E501
+    ),
+):
+    """
+    Get all bills, optionally filtered by customer_id, contract_id, or status.
+
+    Returns:
+        List of bills (ordered by created_at descending).
+    """
+    return await service.get_all(
+        customer_id=customer_id,
+        contract_id=contract_id,
+        statuses=status,
+    )
+
+
 @router.get("/{bill_number}", response_model=BillRead)
 async def get_bill_by_bill_number(bill_number: str, service: BillServiceDep):
     """
@@ -57,30 +86,6 @@ async def get_bill_by_bill_number(bill_number: str, service: BillServiceDep):
             detail=f"Bill with bill_number {bill_number!r} not found",
         )
     return bill
-
-
-@router.get("/", response_model=list[BillRead])
-async def get_bills(
-    service: BillServiceDep,
-    customer_id: UUID | None = Query(
-        None, description="Optional customer ID to filter bills"
-    ),
-    contract_id: UUID | None = Query(
-        None, description="Optional contract ID to filter bills"
-    ),
-):
-    """
-    Get all bills, optionally filtered by customer_id or contract_id.
-
-    Args:
-        customer_id: If provided, return only bills for this customer
-        contract_id: If provided, return only bills for this contract
-        service: Bill service dependency
-
-    Returns:
-        List of bills
-    """
-    return await service.get_all(customer_id=customer_id, contract_id=contract_id)  # noqa: E501
 
 
 @router.patch("/{bill_number}", response_model=BillRead)

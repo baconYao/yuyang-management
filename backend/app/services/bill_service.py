@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.schemas.bill import BillRead, BillUpdate, BillWrite
+from app.api.schemas.bill import BillRead, BillStatus, BillUpdate, BillWrite
 from app.database.models.bill import Bill
 from app.database.models.contract import Contract
 from app.database.models.customer import Customer
@@ -56,13 +56,15 @@ class BillService:
         self,
         customer_id: UUID | None = None,
         contract_id: UUID | None = None,
+        statuses: list[BillStatus] | None = None,
     ) -> list[BillRead]:
         """
-        Get all bills, optionally filtered by customer_id or contract_id.
+        Get all bills, optionally filtered by customer_id, contract_id, or statuses. # noqa: E501
 
         Args:
             customer_id: Optional customer ID to filter bills
             contract_id: Optional contract ID to filter bills
+            statuses: Optional list of BillStatus to filter bills (e.g. [DRAFT], [PAID, OVERDUE, CANCELLED])
 
         Returns:
             List of bills
@@ -72,6 +74,9 @@ class BillService:
             statement = statement.where(Bill.customer_id == customer_id)
         if contract_id is not None:
             statement = statement.where(Bill.contract_id == contract_id)
+        if statuses:
+            statement = statement.where(Bill.status.in_(statuses))
+        statement = statement.order_by(desc(Bill.created_at))
         result = await self._session.execute(statement)
         db_bills = result.scalars().all()
         return [BillRead.model_validate(b) for b in db_bills]
@@ -109,7 +114,7 @@ class BillService:
             )
             return None
 
-        # System auto-fill: previous bill under the same contract (latest by created_at)
+        # System auto-fill: previous bill under the same contract (latest by created_at) # noqa: E501
         prev_result = await self._session.execute(
             select(Bill.bill_number)
             .where(Bill.contract_id == bill.contract_id)
