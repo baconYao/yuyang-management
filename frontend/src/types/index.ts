@@ -55,6 +55,16 @@ export type BillStatus =
   | 'OVERDUE'
   | 'CANCELLED';
 
+/** One line item returned with a bill (GET /bills, GET /bills/{id}). */
+export interface BillItem {
+  id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  sort_order: number;
+}
+
 export interface Bill {
   bill_number: string;
   customer_id: string;
@@ -71,6 +81,17 @@ export interface Bill {
   due_date: string | null;
   sent_at: string | null;
   paid_at: string | null;
+  items?: BillItem[];
+}
+
+/** One line item in PATCH /bills/{bill_number} (items array). */
+export interface BillItemUpdatePayload {
+  id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  sort_order: number;
 }
 
 /** Payload for PATCH /bills/{bill_number}. status is required. */
@@ -83,4 +104,5 @@ export interface BillUpdatePayload {
   due_date?: string | null;
   sent_at?: string | null;
   paid_at?: string | null;
+  items?: BillItemUpdatePayload[];
 }

@@ -226,17 +226,16 @@ class BillService:
             for row in to_delete:
                 await self._session.delete(row)
             for sort_order, item in enumerate(items_payload):
+                item_id = item.get("id")
                 self._session.add(
                     BillItem(
-                        id=item.id or uuid4(),
+                        id=UUID(str(item_id)) if item_id else uuid4(),
                         bill_number=bill_number,
-                        product_name=item.product_name or "",
-                        quantity=item.quantity,
-                        unit_price=item.unit_price,
-                        amount=item.amount,
-                        sort_order=item.sort_order
-                        if item.sort_order is not None
-                        else sort_order,
+                        product_name=item.get("product_name") or "",
+                        quantity=item.get("quantity", 0),
+                        unit_price=item.get("unit_price", 0),
+                        amount=item.get("amount", 0),
+                        sort_order=item.get("sort_order", sort_order),
                     )
                 )
 

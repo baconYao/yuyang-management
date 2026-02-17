@@ -127,11 +127,20 @@ export default function BillDetailModal({
     try {
       const contract = await contractApi.getById(contractId);
       setBillingIntervalDisplay(getBillingIntervalDisplay(contract.billing_interval ?? null));
-      const intervalNum = parseInt(contract.billing_interval ?? '1', 10) || 1;
-      const productName = contract.product_name ?? '';
-      setTableRows([
-        createRow(productName, intervalNum, billData.monthly_rent),
-      ]);
+      if (billData.items && billData.items.length > 0) {
+        const sorted = [...billData.items].sort((a, b) => a.sort_order - b.sort_order);
+        setTableRows(
+          sorted.map((it) =>
+            createRow(it.product_name, it.quantity, it.unit_price, it.id)
+          )
+        );
+      } else {
+        const intervalNum = parseInt(contract.billing_interval ?? '1', 10) || 1;
+        const productName = contract.product_name ?? '';
+        setTableRows([
+          createRow(productName, intervalNum, billData.monthly_rent),
+        ]);
+      }
     } catch {
       setBillingIntervalDisplay('—');
       setTableRows([]);
@@ -178,6 +187,14 @@ export default function BillDetailModal({
         due_date: editForm.due_date ? `${editForm.due_date}T00:00:00.000Z` : null,
         sent_at: editForm.sent_at ? `${editForm.sent_at}T00:00:00.000Z` : null,
         paid_at: editForm.paid_at ? `${editForm.paid_at}T00:00:00.000Z` : null,
+        items: tableRows.map((row, index) => ({
+          id: row.id,
+          product_name: row.productName,
+          quantity: row.quantity,
+          unit_price: row.unitPrice,
+          amount: row.amount,
+          sort_order: index,
+        })),
       };
       const updated = await billApi.update(bill.bill_number, payload);
       onBillUpdated?.(updated);
