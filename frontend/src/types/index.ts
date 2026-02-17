@@ -57,7 +57,6 @@ export type BillStatus =
 
 /** One line item returned with a bill (GET /bills, GET /bills/{id}). */
 export interface BillItem {
-  id: string;
   product_name: string;
   quantity: number;
   unit_price: number;
@@ -86,7 +85,6 @@ export interface Bill {
 
 /** One line item in PATCH /bills/{bill_number} (items array). */
 export interface BillItemUpdatePayload {
-  id: string;
   product_name: string;
   quantity: number;
   unit_price: number;

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlmodel import SQLModel
 
 from app.config import db_settings
-from app.database.models.bill import Bill, BillItem  # noqa: F401
+from app.database.models.bill import Bill  # noqa: F401
 from app.database.models.contract import Contract  # noqa: F401
 from app.database.models.customer import Customer  # noqa: F401
 from app.database.models.user import User  # noqa: F401

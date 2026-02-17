@@ -131,7 +131,7 @@ export default function BillDetailModal({
         const sorted = [...billData.items].sort((a, b) => a.sort_order - b.sort_order);
         setTableRows(
           sorted.map((it) =>
-            createRow(it.product_name, it.quantity, it.unit_price, it.id)
+            createRow(it.product_name, it.quantity, it.unit_price)
           )
         );
       } else {
@@ -188,7 +188,6 @@ export default function BillDetailModal({
         sent_at: editForm.sent_at ? `${editForm.sent_at}T00:00:00.000Z` : null,
         paid_at: editForm.paid_at ? `${editForm.paid_at}T00:00:00.000Z` : null,
         items: tableRows.map((row, index) => ({
-          id: row.id,
           product_name: row.productName,
           quantity: row.quantity,
           unit_price: row.unitPrice,

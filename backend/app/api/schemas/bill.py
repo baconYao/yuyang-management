@@ -32,9 +32,8 @@ PRODUCT_NAME_MAX_LENGTH = 200
 
 
 class BillItemRead(BaseModel):
-    """Line item for a bill (品名、數量、單價、金額)."""
+    """Line item for a bill (品名、數量、單價、金額). No id stored."""
 
-    id: UUID = Field(..., description="Primary key (UUID).")
     product_name: str = Field(
         "", max_length=PRODUCT_NAME_MAX_LENGTH, description="品名"
     )
@@ -47,12 +46,8 @@ class BillItemRead(BaseModel):
 
 
 class BillItemWrite(BaseModel):
-    """Create or update a bill line item."""
+    """Create or update a bill line item. No id stored."""
 
-    id: UUID | None = Field(
-        None,
-        description="If provided, update existing item; if None, create new (server will assign id).",  # noqa: E501
-    )
     product_name: str = Field(
         "", max_length=PRODUCT_NAME_MAX_LENGTH, description="品名"
     )

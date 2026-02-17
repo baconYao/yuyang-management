@@ -2,20 +2,19 @@ import logging
 import random
 import string
 from datetime import UTC, date, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.bill import (
     BillItemRead,
-    BillItemWrite,
     BillRead,
     BillStatus,
     BillUpdate,
     BillWrite,
 )
-from app.database.models.bill import Bill, BillItem
+from app.database.models.bill import Bill
 from app.database.models.contract import Contract
 from app.database.models.customer import Customer
 
@@ -40,20 +39,30 @@ class BillService:
         """Initialize the service with database session"""
         self._session = session
 
-    async def _get_items_for_bill(self, bill_number: str) -> list[BillItem]:
-        """Load bill line items for a bill, ordered by sort_order."""
-        statement = (
-            select(BillItem)
-            .where(BillItem.bill_number == bill_number)
-            .order_by(BillItem.sort_order, BillItem.id)
-        )
-        result = await self._session.execute(statement)
-        return list(result.scalars().all())
+    def _items_from_db(self, raw: list[dict] | None) -> list[BillItemRead]:
+        """Convert bill.items JSON (list of dicts) to list[BillItemRead]."""
+        if not raw:
+            return []
+        out = []
+        for d in raw:
+            if not isinstance(d, dict):
+                continue
+            out.append(
+                BillItemRead(
+                    product_name=d.get("product_name", ""),
+                    quantity=float(d.get("quantity", 0)),
+                    unit_price=float(d.get("unit_price", 0)),
+                    amount=float(d.get("amount", 0)),
+                    sort_order=int(d.get("sort_order", 0)),
+                )
+            )
+        out.sort(key=lambda x: x.sort_order)
+        return out
 
-    def _bill_to_read(self, db_bill: Bill, items: list[BillItem]) -> BillRead:
-        """Build BillRead from Bill ORM and its line items."""
+    def _bill_to_read(self, db_bill: Bill) -> BillRead:
+        """Build BillRead from Bill ORM (items from db_bill.items JSONB)."""
         read = BillRead.model_validate(db_bill)
-        read.items = [BillItemRead.model_validate(i) for i in items]
+        read.items = self._items_from_db(getattr(db_bill, "items", None))
         return read
 
     async def get_by_bill_number(self, bill_number: str) -> BillRead | None:
@@ -73,8 +82,7 @@ class BillService:
         db_bill = result.scalar_one_or_none()
         if db_bill is None:
             return None
-        items = await self._get_items_for_bill(db_bill.bill_number)
-        return self._bill_to_read(db_bill, items)
+        return self._bill_to_read(db_bill)
 
     async def get_all(
         self,
@@ -103,11 +111,7 @@ class BillService:
         statement = statement.order_by(desc(Bill.created_at))
         result = await self._session.execute(statement)
         db_bills = result.scalars().all()
-        out = []
-        for b in db_bills:
-            items = await self._get_items_for_bill(b.bill_number)
-            out.append(self._bill_to_read(b, items))
-        return out
+        return [self._bill_to_read(b) for b in db_bills]
 
     async def create(self, bill: BillWrite) -> BillRead | None:
         """
@@ -166,8 +170,7 @@ class BillService:
         self._session.add(db_bill)
         await self._session.commit()
         await self._session.refresh(db_bill)
-        items = await self._get_items_for_bill(db_bill.bill_number)
-        return self._bill_to_read(db_bill, items)
+        return self._bill_to_read(db_bill)
 
     async def update(self, bill_number: str, bill_update: BillUpdate) -> BillRead:  # noqa: E501
         """
@@ -195,14 +198,12 @@ class BillService:
 
         update_data = bill_update.model_dump(exclude_unset=True)
         update_data.pop("bill_number", None)  # never update primary key
-        items_payload: list[BillItemWrite] | None = update_data.pop("items", None)  # noqa: E501
+        items_payload: list[dict] | None = update_data.pop("items", None)
 
         # Validate status transition if status is being updated
         if "status" in update_data:
             new_status = update_data["status"]
-            current_bill_read = self._bill_to_read(
-                db_bill, await self._get_items_for_bill(db_bill.bill_number)
-            )
+            current_bill_read = self._bill_to_read(db_bill)
             if not current_bill_read.can_transition_to(new_status):
                 raise InvalidStatusTransitionError(
                     f"Invalid status transition from {db_bill.status!s} to {new_status!s}"  # noqa: E501
@@ -211,35 +212,24 @@ class BillService:
         for field, value in update_data.items():
             if isinstance(value, datetime) and value.tzinfo is not None:
                 value = value.astimezone(UTC).replace(tzinfo=None)
+            if field == "notes" and value is None:
+                value = ""
             setattr(db_bill, field, value)
 
         if items_payload is not None:
-            to_delete = (
-                (
-                    await self._session.execute(
-                        select(BillItem).where(BillItem.bill_number == bill_number)  # noqa: E501
-                    )
-                )
-                .scalars()
-                .all()
-            )
-            for row in to_delete:
-                await self._session.delete(row)
+            items_json = []
             for sort_order, item in enumerate(items_payload):
-                item_id = item.get("id")
-                self._session.add(
-                    BillItem(
-                        id=UUID(str(item_id)) if item_id else uuid4(),
-                        bill_number=bill_number,
-                        product_name=item.get("product_name") or "",
-                        quantity=item.get("quantity", 0),
-                        unit_price=item.get("unit_price", 0),
-                        amount=item.get("amount", 0),
-                        sort_order=item.get("sort_order", sort_order),
-                    )
+                items_json.append(
+                    {
+                        "product_name": item.get("product_name") or "",
+                        "quantity": float(item.get("quantity", 0)),
+                        "unit_price": float(item.get("unit_price", 0)),
+                        "amount": float(item.get("amount", 0)),
+                        "sort_order": item.get("sort_order", sort_order),
+                    }
                 )
+            db_bill.items = items_json
 
         await self._session.commit()
         await self._session.refresh(db_bill)
-        items = await self._get_items_for_bill(db_bill.bill_number)
-        return self._bill_to_read(db_bill, items)
+        return self._bill_to_read(db_bill)
