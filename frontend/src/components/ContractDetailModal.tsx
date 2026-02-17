@@ -3,6 +3,7 @@ import { billApi, contractApi } from '../services/api';
 import type { Bill, Contract, ContractWithCustomer } from '../types';
 import { getBillStatusDisplay } from '../utils/billStatusDisplay';
 import { getContractStatusDisplay } from '../utils/contractStatusDisplay';
+import BillDetailModal from './BillDetailModal';
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—';
@@ -123,6 +124,7 @@ export default function ContractDetailModal({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [bills, setBills] = useState<Bill[]>([]);
   const [billsLoading, setBillsLoading] = useState(false);
+  const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
 
   const fetchBills = useCallback(async (contractId: string) => {
     setBillsLoading(true);
@@ -489,7 +491,19 @@ export default function ContractDetailModal({
                     {bills.map((bill) => {
                       const statusDisplay = getBillStatusDisplay(bill);
                       return (
-                        <tr key={bill.bill_number} className="hover:bg-gray-50 transition-colors">
+                        <tr
+                          key={bill.bill_number}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setSelectedBill(bill)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setSelectedBill(bill);
+                            }
+                          }}
+                          className="hover:bg-gray-50 transition-colors cursor-pointer"
+                        >
                           <td className="px-4 py-2 text-sm text-gray-900">
                             {bill.bill_number}
                           </td>
@@ -517,6 +531,18 @@ export default function ContractDetailModal({
           )}
         </div>
       </div>
+
+      {selectedBill && contract && (
+        <BillDetailModal
+          bill={selectedBill}
+          customerName={contract.customer_name ?? null}
+          onClose={() => setSelectedBill(null)}
+          onBillUpdated={(updated) => {
+            fetchBills(contract.id);
+            setSelectedBill(updated);
+          }}
+        />
+      )}
     </div>
   );
 }
