@@ -28,6 +28,39 @@ class BillStatus(str, Enum):
 
 NOTES_MAX_LENGTH = 200
 
+PRODUCT_NAME_MAX_LENGTH = 200
+
+
+class BillItemRead(BaseModel):
+    """Line item for a bill (品名、數量、單價、金額)."""
+
+    id: UUID = Field(..., description="Primary key (UUID).")
+    product_name: str = Field(
+        "", max_length=PRODUCT_NAME_MAX_LENGTH, description="品名"
+    )
+    quantity: float = Field(0, ge=0, description="數量")
+    unit_price: float = Field(0, ge=0, description="單價")
+    amount: float = Field(0, ge=0, description="金額")
+    sort_order: int = Field(0, ge=0, description="Display order (0-based).")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BillItemWrite(BaseModel):
+    """Create or update a bill line item."""
+
+    id: UUID | None = Field(
+        None,
+        description="If provided, update existing item; if None, create new (server will assign id).",  # noqa: E501
+    )
+    product_name: str = Field(
+        "", max_length=PRODUCT_NAME_MAX_LENGTH, description="品名"
+    )
+    quantity: float = Field(0, ge=0, description="數量")
+    unit_price: float = Field(0, ge=0, description="單價")
+    amount: float = Field(0, ge=0, description="金額")
+    sort_order: int = Field(0, ge=0, description="Display order (0-based).")
+
 
 class Bill(BaseModel):
     customer_id: UUID = Field(..., description="Customer ID (foreign key)")
@@ -37,7 +70,7 @@ class Bill(BaseModel):
     monthly_rent: float = Field(..., ge=0, description="Monthly rent")
     invoice_type: InvoiceType = Field(
         default=InvoiceType.NO_INVOICE,
-        description="Invoice type (e.g. no invoice, duplicate/triple uniform invoice)",
+        description="Invoice type (e.g. no invoice, duplicate/triple uniform invoice)",  # noqa: E501
     )
     status: BillStatus = Field(default=BillStatus.DRAFT)
     notes: str = Field(
@@ -52,7 +85,7 @@ class Bill(BaseModel):
     )
     previous_bill_number: str | None = Field(
         None,
-        description="Bill number of the previous bill under the same contract; null for the first bill.",
+        description="Bill number of the previous bill under the same contract; null for the first bill.",  # noqa: E501
         max_length=15,
     )
 
@@ -122,6 +155,10 @@ class BillRead(Bill):
     bill_number: str = Field(..., description="Bill number (primary key)")
     created_at: datetime | None = Field(None, description="Bill creation time")
     updated_at: datetime | None = Field(None, description="Bill last update time")  # noqa: E501
+    items: list[BillItemRead] = Field(
+        default_factory=list,
+        description="Bill line items (品名、數量、單價、金額), ordered by sort_order.",
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -134,7 +171,7 @@ class BillWrite(BaseModel):
     monthly_rent: float = Field(..., ge=0, description="Monthly rent")
     invoice_type: InvoiceType = Field(
         default=InvoiceType.NO_INVOICE,
-        description="Invoice type (e.g. no invoice, duplicate/triple uniform invoice)",
+        description="Invoice type (e.g. no invoice, duplicate/triple uniform invoice)",  # noqa: E501
     )
     status: BillStatus = Field(default=BillStatus.DRAFT)
     notes: str = Field(
@@ -158,8 +195,13 @@ class BillUpdate(BaseModel):
     tax_amount: float | None = Field(None, ge=0, description="Tax amount")
     monthly_rent: float | None = Field(None, ge=0, description="Monthly rent")
     invoice_type: InvoiceType | None = Field(
-        None, description="Invoice type (e.g. no invoice, duplicate/triple uniform invoice)"
+        None,
+        description="Invoice type (e.g. no invoice, duplicate/triple uniform invoice)",  # noqa: E501
     )
     due_date: datetime | None = Field(None, description="Payment deadline")
     sent_at: datetime | None = Field(None, description="帳單寄出時間")
     paid_at: datetime | None = Field(None, description="客戶付款時間")
+    items: list[BillItemWrite] | None = Field(
+        None,
+        description="If set, replace bill line items with this list (ordered by sort_order).",  # noqa: E501
+    )

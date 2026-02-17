@@ -3,6 +3,29 @@ import { billApi, contractApi } from '../services/api';
 import type { Bill, BillStatus } from '../types';
 import { getBillStatusDisplay } from '../utils/billStatusDisplay';
 
+export interface BillItemRow {
+  id: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+}
+
+function createRow(
+  productName: string,
+  quantity: number,
+  unitPrice: number,
+  id?: string
+): BillItemRow {
+  return {
+    id: id ?? crypto.randomUUID(),
+    productName,
+    quantity,
+    unitPrice,
+    amount: Math.round(quantity * unitPrice * 100) / 100,
+  };
+}
+
 const INVOICE_TYPE_OPTIONS = [
   { value: 'NO_INVOICE', label: '不開立發票' },
   { value: 'DUPLICATE_UNIFORM_INVOICE', label: '二聯式發票' },
@@ -85,6 +108,7 @@ export default function BillDetailModal({
   onBillUpdated,
 }: BillDetailModalProps) {
   const [billingIntervalDisplay, setBillingIntervalDisplay] = useState<string>('—');
+  const [tableRows, setTableRows] = useState<BillItemRow[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -99,12 +123,18 @@ export default function BillDetailModal({
     paid_at: '',
   });
 
-  const fetchContractForBillingInterval = useCallback(async (contractId: string) => {
+  const fetchContractAndInitTable = useCallback(async (contractId: string, billData: Bill) => {
     try {
       const contract = await contractApi.getById(contractId);
       setBillingIntervalDisplay(getBillingIntervalDisplay(contract.billing_interval ?? null));
+      const intervalNum = parseInt(contract.billing_interval ?? '1', 10) || 1;
+      const productName = contract.product_name ?? '';
+      setTableRows([
+        createRow(productName, intervalNum, billData.monthly_rent),
+      ]);
     } catch {
       setBillingIntervalDisplay('—');
+      setTableRows([]);
     }
   }, []);
 
@@ -122,8 +152,8 @@ export default function BillDetailModal({
     });
     setIsEditing(false);
     setSaveError(null);
-    fetchContractForBillingInterval(bill.contract_id);
-  }, [bill, fetchContractForBillingInterval]);
+    fetchContractAndInitTable(bill.contract_id, bill);
+  }, [bill, fetchContractAndInitTable]);
 
   if (!bill) return null;
 
@@ -172,12 +202,36 @@ export default function BillDetailModal({
     });
     setIsEditing(false);
     setSaveError(null);
+    fetchContractAndInitTable(bill.contract_id, bill);
+  };
+
+  const updateTableRow = (index: number, field: keyof BillItemRow, value: string | number) => {
+    if (field === 'id') return;
+    setTableRows((prev) => {
+      const next = [...prev];
+      const row = { ...next[index] };
+      if (field === 'productName') row.productName = String(value);
+      else if (field === 'quantity') row.quantity = Number(value) || 0;
+      else if (field === 'unitPrice') row.unitPrice = Number(value) || 0;
+      row.amount = Math.round(row.quantity * row.unitPrice * 100) / 100;
+      next[index] = row;
+      return next;
+    });
+  };
+
+  const addTableRow = () => {
+    setTableRows((prev) => [...prev, createRow('', 1, 0)]);
+  };
+
+  const removeTableRow = (index: number) => {
+    if (index <= 0) return;
+    setTableRows((prev) => prev.filter((_, i) => i !== index));
   };
 
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
-      onClick={onClose}
+      onClick={() => { if (!isEditing) onClose(); }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="bill-modal-title"
@@ -192,15 +246,25 @@ export default function BillDetailModal({
           </h2>
           <div className="flex items-center gap-2">
             {!isEditing ? (
-              <button
-                type="button"
-                onClick={handleStartEdit}
-                className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
-                aria-label="編輯"
-                title="編輯"
-              >
-                <EditIcon className="w-5 h-5" />
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                  aria-label="下載帳單"
+                  title="下載帳單"
+                >
+                  下載帳單
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStartEdit}
+                  className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
+                  aria-label="編輯"
+                  title="編輯"
+                >
+                  <EditIcon className="w-5 h-5" />
+                </button>
+              </>
             ) : null}
             <button
               type="button"
@@ -310,6 +374,86 @@ export default function BillDetailModal({
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">明細</label>
+                  <button
+                    type="button"
+                    onClick={addTableRow}
+                    className="text-sm px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 text-gray-700"
+                  >
+                    新增一列
+                  </button>
+                </div>
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        <th className="text-left py-2 px-3 font-medium text-gray-700">品名</th>
+                        <th className="text-right py-2 px-3 font-medium text-gray-700">數量</th>
+                        <th className="text-right py-2 px-3 font-medium text-gray-700">單價</th>
+                        <th className="text-right py-2 px-3 font-medium text-gray-700">金額</th>
+                        <th className="w-12" aria-label="操作" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tableRows.map((row, index) => (
+                        <tr key={row.id} className="border-b border-gray-100 last:border-0">
+                          <td className="py-1.5 px-3">
+                            <input
+                              type="text"
+                              value={row.productName}
+                              onChange={(e) => updateTableRow(index, 'productName', e.target.value)}
+                              className="w-full px-2 py-1 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              placeholder="品名"
+                            />
+                          </td>
+                          <td className="py-1.5 px-3 text-right">
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={row.quantity}
+                              onChange={(e) =>
+                                updateTableRow(index, 'quantity', parseFloat(e.target.value) || 0)
+                              }
+                              className="w-20 px-2 py-1 border border-gray-200 rounded text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          </td>
+                          <td className="py-1.5 px-3 text-right">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={row.unitPrice}
+                              onChange={(e) =>
+                                updateTableRow(index, 'unitPrice', parseFloat(e.target.value) || 0)
+                              }
+                              className="w-24 px-2 py-1 border border-gray-200 rounded text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          </td>
+                          <td className="py-1.5 px-3 text-right text-gray-900 tabular-nums">
+                            {row.amount.toFixed(2)}
+                          </td>
+                          <td className="py-1.5 px-2 text-center">
+                            {index > 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => removeTableRow(index)}
+                                className="p-1 text-red-600 hover:bg-red-50 rounded"
+                                aria-label="移除"
+                                title="移除"
+                              >
+                                移除
+                              </button>
+                            ) : null}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
               <div className="flex gap-2 pt-2">
                 <button
                   type="submit"
@@ -328,6 +472,7 @@ export default function BillDetailModal({
               </div>
             </form>
           ) : (
+            <div className="space-y-6">
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <div>
                 <dt className="text-gray-500 font-medium">帳單編號</dt>
@@ -388,6 +533,39 @@ export default function BillDetailModal({
                 <dd className="text-gray-900">{bill.notes || '—'}</dd>
               </div>
             </dl>
+
+            <div className="mt-6">
+              <span className="text-sm font-medium text-gray-700">明細</span>
+              <div className="border border-gray-200 rounded-lg overflow-hidden mt-2">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="text-left py-2 px-3 font-medium text-gray-700">品名</th>
+                      <th className="text-right py-2 px-3 font-medium text-gray-700">數量</th>
+                      <th className="text-right py-2 px-3 font-medium text-gray-700">單價</th>
+                      <th className="text-right py-2 px-3 font-medium text-gray-700">金額</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableRows.map((row) => (
+                      <tr key={row.id} className="border-b border-gray-100 last:border-0">
+                        <td className="py-1.5 px-3 text-gray-900">{row.productName || '—'}</td>
+                        <td className="py-1.5 px-3 text-right text-gray-900 tabular-nums">
+                          {row.quantity}
+                        </td>
+                        <td className="py-1.5 px-3 text-right text-gray-900 tabular-nums">
+                          {row.unitPrice.toFixed(2)}
+                        </td>
+                        <td className="py-1.5 px-3 text-right text-gray-900 tabular-nums">
+                          {row.amount.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            </div>
           )}
         </div>
       </div>

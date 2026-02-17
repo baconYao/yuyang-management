@@ -2,13 +2,20 @@ import logging
 import random
 import string
 from datetime import date
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.schemas.bill import BillRead, BillStatus, BillUpdate, BillWrite
-from app.database.models.bill import Bill
+from app.api.schemas.bill import (
+    BillItemRead,
+    BillItemWrite,
+    BillRead,
+    BillStatus,
+    BillUpdate,
+    BillWrite,
+)
+from app.database.models.bill import Bill, BillItem
 from app.database.models.contract import Contract
 from app.database.models.customer import Customer
 
@@ -33,6 +40,22 @@ class BillService:
         """Initialize the service with database session"""
         self._session = session
 
+    async def _get_items_for_bill(self, bill_number: str) -> list[BillItem]:
+        """Load bill line items for a bill, ordered by sort_order."""
+        statement = (
+            select(BillItem)
+            .where(BillItem.bill_number == bill_number)
+            .order_by(BillItem.sort_order, BillItem.id)
+        )
+        result = await self._session.execute(statement)
+        return list(result.scalars().all())
+
+    def _bill_to_read(self, db_bill: Bill, items: list[BillItem]) -> BillRead:
+        """Build BillRead from Bill ORM and its line items."""
+        read = BillRead.model_validate(db_bill)
+        read.items = [BillItemRead.model_validate(i) for i in items]
+        return read
+
     async def get_by_bill_number(self, bill_number: str) -> BillRead | None:
         """
         Get a bill by bill_number (table primary key).
@@ -50,7 +73,8 @@ class BillService:
         db_bill = result.scalar_one_or_none()
         if db_bill is None:
             return None
-        return BillRead.model_validate(db_bill)
+        items = await self._get_items_for_bill(db_bill.bill_number)
+        return self._bill_to_read(db_bill, items)
 
     async def get_all(
         self,
@@ -79,7 +103,11 @@ class BillService:
         statement = statement.order_by(desc(Bill.created_at))
         result = await self._session.execute(statement)
         db_bills = result.scalars().all()
-        return [BillRead.model_validate(b) for b in db_bills]
+        out = []
+        for b in db_bills:
+            items = await self._get_items_for_bill(b.bill_number)
+            out.append(self._bill_to_read(b, items))
+        return out
 
     async def create(self, bill: BillWrite) -> BillRead | None:
         """
@@ -138,7 +166,8 @@ class BillService:
         self._session.add(db_bill)
         await self._session.commit()
         await self._session.refresh(db_bill)
-        return BillRead.model_validate(db_bill)
+        items = await self._get_items_for_bill(db_bill.bill_number)
+        return self._bill_to_read(db_bill, items)
 
     async def update(self, bill_number: str, bill_update: BillUpdate) -> BillRead:  # noqa: E501
         """
@@ -166,11 +195,14 @@ class BillService:
 
         update_data = bill_update.model_dump(exclude_unset=True)
         update_data.pop("bill_number", None)  # never update primary key
+        items_payload: list[BillItemWrite] | None = update_data.pop("items", None)  # noqa: E501
 
         # Validate status transition if status is being updated
         if "status" in update_data:
             new_status = update_data["status"]
-            current_bill_read = BillRead.model_validate(db_bill)
+            current_bill_read = self._bill_to_read(
+                db_bill, await self._get_items_for_bill(db_bill.bill_number)
+            )
             if not current_bill_read.can_transition_to(new_status):
                 raise InvalidStatusTransitionError(
                     f"Invalid status transition from {db_bill.status!s} to {new_status!s}"  # noqa: E501
@@ -179,6 +211,34 @@ class BillService:
         for field, value in update_data.items():
             setattr(db_bill, field, value)
 
+        if items_payload is not None:
+            to_delete = (
+                (
+                    await self._session.execute(
+                        select(BillItem).where(BillItem.bill_number == bill_number)  # noqa: E501
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            for row in to_delete:
+                await self._session.delete(row)
+            for sort_order, item in enumerate(items_payload):
+                self._session.add(
+                    BillItem(
+                        id=item.id or uuid4(),
+                        bill_number=bill_number,
+                        product_name=item.product_name or "",
+                        quantity=item.quantity,
+                        unit_price=item.unit_price,
+                        amount=item.amount,
+                        sort_order=item.sort_order
+                        if item.sort_order is not None
+                        else sort_order,
+                    )
+                )
+
         await self._session.commit()
         await self._session.refresh(db_bill)
-        return BillRead.model_validate(db_bill)
+        items = await self._get_items_for_bill(db_bill.bill_number)
+        return self._bill_to_read(db_bill, items)
