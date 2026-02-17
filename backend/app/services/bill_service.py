@@ -1,7 +1,7 @@
 import logging
 import random
 import string
-from datetime import date
+from datetime import UTC, date, datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import desc, select
@@ -209,6 +209,8 @@ class BillService:
                 )
 
         for field, value in update_data.items():
+            if isinstance(value, datetime) and value.tzinfo is not None:
+                value = value.astimezone(UTC).replace(tzinfo=None)
             setattr(db_bill, field, value)
 
         if items_payload is not None:
