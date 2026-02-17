@@ -469,6 +469,40 @@ export default function BillDetailModal({
                     </tbody>
                   </table>
                 </div>
+                {(() => {
+                  const subtotal = tableRows.reduce((s, r) => s + r.amount, 0);
+                  const invType = editForm.invoice_type || '';
+                  const vatLabel =
+                    invType === 'NO_INVOICE'
+                      ? '未'
+                      : invType === 'DUPLICATE_UNIFORM_INVOICE'
+                        ? '已內含'
+                        : invType === 'TRIPLE_UNIFORM_INVOICE'
+                          ? (subtotal * 0.05).toFixed(2)
+                          : '—';
+                  const vatDisplay =
+                    invType === 'TRIPLE_UNIFORM_INVOICE' ? `$${vatLabel}` : vatLabel;
+                  const total =
+                    invType === 'TRIPLE_UNIFORM_INVOICE'
+                      ? subtotal + subtotal * 0.05
+                      : subtotal;
+                  return (
+                    <div className="mt-4 pt-4 border-t border-gray-200 text-sm">
+                      <div className="flex justify-between text-gray-700">
+                        <span>合計</span>
+                        <span className="tabular-nums">${subtotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-700 mt-1">
+                        <span>營業稅 5%</span>
+                        <span className="tabular-nums">{vatDisplay}</span>
+                      </div>
+                      <div className="flex justify-between font-medium text-gray-900 mt-2">
+                        <span>總計</span>
+                        <span className="tabular-nums">${total.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               <div className="flex gap-2 pt-2">
                 <button
@@ -509,18 +543,6 @@ export default function BillDetailModal({
               <div>
                 <dt className="text-gray-500 font-medium">發票類型</dt>
                 <dd className="text-gray-900">{getInvoiceTypeLabel(bill.invoice_type)}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500 font-medium">月租金額</dt>
-                <dd className="text-gray-900">${bill.monthly_rent}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500 font-medium">稅額</dt>
-                <dd className="text-gray-900">${bill.tax_amount}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500 font-medium">總金額</dt>
-                <dd className="text-gray-900 font-medium">${bill.amount}</dd>
               </div>
               <div>
                 <dt className="text-gray-500 font-medium">狀態</dt>
@@ -580,6 +602,40 @@ export default function BillDetailModal({
                   </tbody>
                 </table>
               </div>
+              {(() => {
+                const subtotal = tableRows.reduce((s, r) => s + r.amount, 0);
+                const invType = bill.invoice_type ?? '';
+                const vatLabel =
+                  invType === 'NO_INVOICE'
+                    ? '未'
+                    : invType === 'DUPLICATE_UNIFORM_INVOICE'
+                      ? '已內含'
+                      : invType === 'TRIPLE_UNIFORM_INVOICE'
+                        ? (subtotal * 0.05).toFixed(2)
+                        : '—';
+                const vatDisplay =
+                  invType === 'TRIPLE_UNIFORM_INVOICE' ? `$${vatLabel}` : vatLabel;
+                const total =
+                  invType === 'TRIPLE_UNIFORM_INVOICE'
+                    ? subtotal + subtotal * 0.05
+                    : subtotal;
+                return (
+                  <div className="mt-4 pt-4 border-t border-gray-200 text-sm">
+                    <div className="flex justify-between text-gray-700">
+                      <span>合計</span>
+                      <span className="tabular-nums">${subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-700 mt-1">
+                      <span>營業稅 5%</span>
+                      <span className="tabular-nums">{vatDisplay}</span>
+                    </div>
+                    <div className="flex justify-between font-medium text-gray-900 mt-2">
+                      <span>總計</span>
+                      <span className="tabular-nums">${total.toFixed(2)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
             </div>
           )}
