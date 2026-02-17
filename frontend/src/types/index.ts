@@ -72,3 +72,15 @@ export interface Bill {
   sent_at: string | null;
   paid_at: string | null;
 }
+
+/** Payload for PATCH /bills/{bill_number}. status is required. */
+export interface BillUpdatePayload {
+  status: BillStatus;
+  notes?: string | null;
+  tax_amount?: number | null;
+  monthly_rent?: number | null;
+  invoice_type?: string | null;
+  due_date?: string | null;
+  sent_at?: string | null;
+  paid_at?: string | null;
+}

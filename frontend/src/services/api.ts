@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Bill, BillStatus, Customer, Contract } from '../types';
+import type { Bill, BillStatus, BillUpdatePayload, Customer, Contract } from '../types';
 
 const api = axios.create({
   baseURL: '/api/v1',
@@ -99,6 +99,14 @@ export const billApi = {
     const response = await api.get<Bill[]>('/bills/', {
       params: { contract_id: contractId },
     });
+    return response.data;
+  },
+
+  update: async (billNumber: string, payload: BillUpdatePayload): Promise<Bill> => {
+    const response = await api.patch<Bill>(
+      `/bills/${encodeURIComponent(billNumber)}`,
+      payload
+    );
     return response.data;
   },
 };

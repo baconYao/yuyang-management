@@ -8,7 +8,6 @@ interface LayoutProps {
 const BILL_SUB_ROUTES = [
   { path: '/bills/draft', label: '未處理的帳單' },
   { path: '/bills/processing', label: '請款中的帳單' },
-  { path: '/bills/processed', label: '已處理的帳單' },
 ] as const;
 
 export default function Layout({ children }: LayoutProps) {

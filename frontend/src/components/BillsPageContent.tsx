@@ -111,6 +111,9 @@ export default function BillsPageContent({ statusFilter, title }: BillsPageConte
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  帳單編號
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   客戶名稱
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -118,9 +121,6 @@ export default function BillsPageContent({ statusFilter, title }: BillsPageConte
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   發票
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  月租金額
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   總金額
@@ -146,6 +146,9 @@ export default function BillsPageContent({ statusFilter, title }: BillsPageConte
                       onClick={() => setSelectedBill(bill)}
                       className="hover:bg-gray-100 cursor-pointer transition-colors"
                     >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {bill.bill_number}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {getCustomerName(bill.customer_id)}
                       </td>
@@ -154,9 +157,6 @@ export default function BillsPageContent({ statusFilter, title }: BillsPageConte
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                         {getInvoiceTypeLabel(bill.invoice_type)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        ${bill.monthly_rent}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         ${bill.amount}
@@ -181,6 +181,12 @@ export default function BillsPageContent({ statusFilter, title }: BillsPageConte
         bill={selectedBill}
         customerName={selectedBill ? getCustomerName(selectedBill.customer_id) : null}
         onClose={() => setSelectedBill(null)}
+        onBillUpdated={(updated) => {
+          setBills((prev) =>
+            prev.map((b) => (b.bill_number === updated.bill_number ? updated : b))
+          );
+          setSelectedBill(updated);
+        }}
       />
     </div>
   );
