@@ -177,7 +177,7 @@ class InvoiceProcessor:
             self.json_processor.create_sample_json("sample_invoices.json")
 
             print("正在建立範例 PDF...")
-            sample_data = self.json_processor.load_json_file("sample_invoices.json")
+            self.json_processor.load_json_file("sample_invoices.json")
             self.html_generator.generate_from_json(
                 "sample_invoices.json", "sample_invoices.pdf"
             )

@@ -6,16 +6,19 @@ Generate fake data for development and testing.
 This script generates:
 - 35 customers: 10 TERMINATED (no cooperation), 25 ACTIVE (with cooperation)
 - ACTIVE customers each have 1-3 contracts
+- Bills only for contracts with status ACTIVE (1st bill at contract start_date, then by billing_interval)
 """
 
 import asyncio
 import random
+import string
 from datetime import datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.api.schemas.bill import BillStatus
 from app.api.schemas.contract import (
     BillingInterval,
     ContractStatus,
@@ -24,6 +27,7 @@ from app.api.schemas.contract import (
 )
 from app.api.schemas.customer import CustomerStatus, CustomerType
 from app.config import db_settings
+from app.database.models.bill import Bill
 from app.database.models.contract import Contract
 from app.database.models.customer import Customer
 
@@ -191,11 +195,11 @@ def generate_contract(customer_id: str, contract_index: int) -> Contract:
     # Status based on dates
     now = datetime.now()
     if end_date < now:
-        status = random.choice([ContractStatus.EXPIRED, ContractStatus.TERMINATED])
+        status = random.choice([ContractStatus.ENDED, ContractStatus.TERMINATED])
     elif start_date > now:
         status = ContractStatus.PENDING
     else:
-        status = random.choice([ContractStatus.ACTIVE, ContractStatus.SUSPENDED])
+        status = random.choice([ContractStatus.ACTIVE, ContractStatus.TRIAL])
 
     # Monthly rent (in TWD)
     monthly_rent = random.choice([5000, 8000, 10000, 12000, 15000, 20000, 25000, 30000])
@@ -215,9 +219,9 @@ def generate_contract(customer_id: str, contract_index: int) -> Contract:
             last_billing += timedelta(days=interval_months * 30)
         next_billing_date = last_billing
 
-    # Contract number
-    year = start_date.year
-    contract_number = f"CONTRACT-{year}-{contract_index:03d}"
+    # Contract number (same format as server: C-YYYY-MM-XXXXX)
+    suffix = "".join(random.choices(string.ascii_uppercase, k=5))
+    contract_number = f"C-{start_date.year}-{start_date.month:02d}-{suffix}"
 
     # Notes (optional)
     notes = None
@@ -270,6 +274,74 @@ def generate_contract(customer_id: str, contract_index: int) -> Contract:
     )
 
 
+def _generate_bill_number(billing_date: datetime, used: set[str]) -> str:
+    """Generate unique bill_number: B-YYYY-MM-XXXXX. Avoids collisions via used set."""
+    while True:
+        suffix = "".join(random.choices(string.ascii_uppercase, k=5))
+        candidate = f"B-{billing_date.year}-{billing_date.month:02d}-{suffix}"
+        if candidate not in used:
+            used.add(candidate)
+            return candidate
+
+
+def generate_bill(
+    contract: Contract,
+    previous_bill_number: str | None,
+    billing_date: datetime,
+    used_bill_numbers: set[str],
+) -> Bill:
+    """Generate one bill for a contract at the given billing_date. amount/tax_amount by invoice_type."""
+    interval_months = int(contract.billing_interval.value)
+    base = contract.monthly_rent * interval_months
+    if contract.invoice_type == InvoiceType.TRIPLE_UNIFORM_INVOICE:
+        tax_amount = round(base * 0.05, 2)
+    else:
+        tax_amount = 0.0
+    amount = round(base + tax_amount, 2)
+
+    bill_number = _generate_bill_number(billing_date, used_bill_numbers)
+
+    status = random.choice(list(BillStatus))
+    due_date = billing_date + timedelta(days=7)
+    created_at = billing_date + timedelta(days=random.randint(0, 2))
+    updated_at = created_at + timedelta(days=random.randint(0, 5))
+
+    sent_at = None
+    paid_at = None
+    if status in (BillStatus.SENT, BillStatus.PROCESSING, BillStatus.PAID):
+        sent_at = billing_date + timedelta(days=random.randint(1, 5))
+    if status == BillStatus.PAID:
+        paid_at = (sent_at or billing_date) + timedelta(days=random.randint(1, 14))
+
+    notes = ""
+    if random.random() < 0.2:
+        payment_notes = {
+            PaymentMethod.BANK_TRANSFER: "匯款",
+            PaymentMethod.CASH: "現金",
+            PaymentMethod.CHECK: "支票",
+            PaymentMethod.OTHER: "其他方式",
+        }
+        notes = payment_notes.get(contract.payment_method, "")
+
+    return Bill(
+        bill_number=bill_number,
+        customer_id=contract.customer_id,
+        contract_id=contract.id,
+        amount=amount,
+        tax_amount=tax_amount,
+        monthly_rent=contract.monthly_rent,
+        invoice_type=contract.invoice_type,
+        status=status,
+        notes=notes,
+        previous_bill_number=previous_bill_number,
+        created_at=created_at,
+        updated_at=updated_at,
+        due_date=due_date,
+        sent_at=sent_at,
+        paid_at=paid_at,
+    )
+
+
 async def generate_fake_data():
     """Generate and insert fake data into the database."""
     # Create database engine
@@ -298,8 +370,8 @@ async def generate_fake_data():
         await session.commit()
         print(f"✓ Created {len(customers)} customers")
 
-        # Generate contracts for ACTIVE customers only (indices 10-34)
-        total_contracts = 0
+        # Generate contracts for ACTIVE customers only (indices 10-34); keep list for bills
+        contracts: list[Contract] = []
         contract_index = 1
 
         print(f"  - {NUM_TERMINATED} customers without cooperation (TERMINATED)")
@@ -313,12 +385,42 @@ async def generate_fake_data():
             for _ in range(num_contracts):
                 contract = generate_contract(customer.id, contract_index)
                 session.add(contract)
-                total_contracts += 1
+                contracts.append(contract)
                 contract_index += 1
 
         await session.commit()
+        print(f"✓ Created {len(contracts)} contracts for {NUM_ACTIVE} ACTIVE customers")
+
+        # Generate bills only for contracts with status ACTIVE
+        used_bill_numbers: set[str] = set()
+        total_bills = 0
+        active_contracts = [c for c in contracts if c.status == ContractStatus.ACTIVE]
+        max_bills_per_contract = 6  # cap number of bills per contract
+
+        for contract in active_contracts:
+            interval_months = int(contract.billing_interval.value)
+            billing_dates: list[datetime] = []
+            d = contract.start_date
+            while (
+                len(billing_dates) < max_bills_per_contract and d <= contract.end_date
+            ):
+                billing_dates.append(d)
+                d += timedelta(days=interval_months * 30)
+            if not billing_dates:
+                continue
+
+            previous_bill_number: str | None = None
+            for billing_date in billing_dates:
+                bill = generate_bill(
+                    contract, previous_bill_number, billing_date, used_bill_numbers
+                )
+                session.add(bill)
+                previous_bill_number = bill.bill_number
+                total_bills += 1
+
+        await session.commit()
         print(
-            f"✓ Created {total_contracts} contracts for {NUM_ACTIVE} ACTIVE customers"
+            f"✓ Created {total_bills} bills (only for {len(active_contracts)} ACTIVE contracts)"
         )
 
         print("\n" + "=" * 50)
@@ -326,7 +428,8 @@ async def generate_fake_data():
         print(f"  - Total customers: {len(customers)}")
         print(f"  - TERMINATED (no cooperation): {NUM_TERMINATED}")
         print(f"  - ACTIVE (with cooperation): {NUM_ACTIVE}")
-        print(f"  - Total contracts: {total_contracts}")
+        print(f"  - Total contracts: {len(contracts)}")
+        print(f"  - Total bills: {total_bills} (ACTIVE contracts only)")
         print("=" * 50)
         print("\n✓ Fake data generation completed!")
 

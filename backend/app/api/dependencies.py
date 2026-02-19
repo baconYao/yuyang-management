@@ -4,6 +4,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_session
+from app.services.bill_service import BillService
 from app.services.contract_service import ContractService
 from app.services.customer_service import CustomerService
 from app.services.user_service import UserService
@@ -52,6 +53,19 @@ def get_contract_service(session: SessionDep) -> ContractService:
     return ContractService(session)
 
 
+def get_bill_service(session: SessionDep) -> BillService:
+    """
+    Get BillService instance with database session
+
+    Args:
+        session: Database session
+
+    Returns:
+        BillService instance
+    """
+    return BillService(session)
+
+
 # Customer service dep annotation
 CustomerServiceDep = Annotated[
     CustomerService,
@@ -66,4 +80,9 @@ UserServiceDep = Annotated[
 ContractServiceDep = Annotated[
     ContractService,
     Depends(get_contract_service),
+]
+
+BillServiceDep = Annotated[
+    BillService,
+    Depends(get_bill_service),
 ]

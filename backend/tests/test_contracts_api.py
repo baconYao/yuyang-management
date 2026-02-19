@@ -1,5 +1,6 @@
 # flake8: noqa: E501
 
+import re
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
@@ -10,6 +11,9 @@ from sqlalchemy import delete, select
 from app.api.schemas.customer import CustomerType
 from app.database.models.contract import Contract
 from app.database.models.customer import Customer
+
+# Server-generated contract_number format: C-YYYY-MM-XXXXX (5 uppercase letters)
+CONTRACT_NUMBER_PATTERN = re.compile(r"^C-\d{4}-\d{2}-[A-Z]{5}$")
 
 
 @pytest.mark.asyncio
@@ -50,7 +54,6 @@ async def test_get_contract_by_id_success(client: AsyncClient, test_session):
         "billing_interval": "6",
         "notes": "Get ID Test Notes",
         "status": "ACTIVE",
-        "contract_number": "GET-CONTRACT-001",
     }
 
     create_response = await client.post("/api/v1/contracts/", json=contract_data)
@@ -63,14 +66,15 @@ async def test_get_contract_by_id_success(client: AsyncClient, test_session):
     assert response.status_code == 200
     contract = response.json()
 
-    # Verify response data
+    # Verify response data (contract_number is server-generated)
     assert contract["id"] == contract_id
     assert contract["product_name"] == "Get ID Test Product"
     assert contract["monthly_rent"] == 12000
     assert contract["billing_interval"] == "6"
     assert contract["notes"] == "Get ID Test Notes"
     assert contract["status"] == "ACTIVE"
-    assert contract["contract_number"] == "GET-CONTRACT-001"
+    assert contract["contract_number"] is not None
+    assert CONTRACT_NUMBER_PATTERN.match(contract["contract_number"])
     assert contract["customer_id"] == str(test_customer.id)
     assert contract["created_at"] is not None
     assert contract["updated_at"] is not None
@@ -157,7 +161,6 @@ async def test_create_contract_via_api(client: AsyncClient, test_session):
         "billing_interval": "3",
         "notes": "API Test Notes",
         "status": "ACTIVE",
-        "contract_number": "API-CONTRACT-001",
         "signed_date": (start_date - timedelta(days=1)).isoformat(),
         "payment_method": "BANK_TRANSFER",
         "next_billing_date": (start_date + timedelta(days=90)).isoformat(),
@@ -167,13 +170,14 @@ async def test_create_contract_via_api(client: AsyncClient, test_session):
     assert response.status_code == 201
     created_contract = response.json()
 
-    # Verify response
+    # Verify response (contract_number is server-generated)
     assert created_contract["product_name"] == "API Test Product"
     assert created_contract["monthly_rent"] == 15000
     assert created_contract["billing_interval"] == "3"
     assert created_contract["notes"] == "API Test Notes"
     assert created_contract["status"] == "ACTIVE"
-    assert created_contract["contract_number"] == "API-CONTRACT-001"
+    assert created_contract["contract_number"] is not None
+    assert CONTRACT_NUMBER_PATTERN.match(created_contract["contract_number"])
     assert created_contract["payment_method"] == "BANK_TRANSFER"
     assert created_contract["id"] is not None
     assert created_contract["customer_id"] == str(test_customer.id)
@@ -508,7 +512,8 @@ async def test_create_contract_with_minimal_fields(client: AsyncClient, test_ses
     assert created_contract["billing_interval"] == "6"
     assert created_contract["status"] == "PENDING"
     assert created_contract["notes"] is None
-    assert created_contract["contract_number"] is None
+    assert created_contract["contract_number"] is not None
+    assert CONTRACT_NUMBER_PATTERN.match(created_contract["contract_number"])
     assert created_contract["signed_date"] is None
     assert created_contract["payment_method"] is None
     assert created_contract["next_billing_date"] is None
@@ -609,6 +614,54 @@ async def test_create_contract_invalid_billing_interval(
     assert "detail" in error_detail
 
     # Cleanup
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_create_contract_with_new_billing_intervals(
+    client: AsyncClient, test_session
+):
+    """
+    Test POST /api/v1/contracts/ accepts new billing_interval values: 1, 2, 24, 36.
+    """
+    await test_session.execute(delete(Contract))
+    await test_session.execute(delete(Customer))
+    await test_session.commit()
+
+    test_customer = Customer(
+        customer_name="New Interval Customer",
+        invoice_title="New Interval Invoice",
+        invoice_number="INV002",
+        contact_phone="0944444444",
+        messaging_app_line="new_interval_line",
+        address="New Interval Address",
+        primary_contact="New Contact",
+        customer_type=CustomerType.COMPANY,
+    )
+    test_session.add(test_customer)
+    await test_session.commit()
+    await test_session.refresh(test_customer)
+
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=365)
+
+    for billing_interval in ("1", "2", "24", "36"):
+        contract_data = {
+            "customer_id": str(test_customer.id),
+            "product_name": f"Product {billing_interval}m",
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "monthly_rent": 10000,
+            "billing_interval": billing_interval,
+            "status": "ACTIVE",
+        }
+        response = await client.post("/api/v1/contracts/", json=contract_data)
+        assert response.status_code == 201, response.json()
+        created = response.json()
+        assert created["billing_interval"] == billing_interval
+
     await test_session.execute(delete(Contract))
     await test_session.execute(delete(Customer))
     await test_session.commit()
@@ -909,7 +962,7 @@ async def test_update_contract_partial_update(client: AsyncClient, test_session)
 
     # Update only status via API
     update_data = {
-        "status": "SUSPENDED",
+        "status": "TRIAL",
     }
 
     response = await client.patch(f"/api/v1/contracts/{contract_id}", json=update_data)
@@ -917,7 +970,7 @@ async def test_update_contract_partial_update(client: AsyncClient, test_session)
     updated_contract = response.json()
 
     # Verify only status was updated
-    assert updated_contract["status"] == "SUSPENDED"
+    assert updated_contract["status"] == "TRIAL"
     assert updated_contract["billing_interval"] == original_billing_interval
     assert updated_contract["payment_method"] == original_payment_method
     assert updated_contract["notes"] == "Original Notes"

@@ -1,17 +1,17 @@
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class CustomerStatus(str, Enum):
+class CustomerStatus(StrEnum):
     """Contract status enumeration"""
 
     ACTIVE = "ACTIVE"
     TERMINATED = "TERMINATED"
 
 
-class CustomerType(str, Enum):
+class CustomerType(StrEnum):
     """Customer type enumeration"""
 
     REAL_ESTATE = "REAL_ESTATE"

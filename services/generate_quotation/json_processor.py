@@ -130,18 +130,6 @@ class JSONProcessor:
             "invoice_type",
             "items",
         ]
-        
-        # 可選欄位（包含舊版/新版的對應欄位）
-        optional_fields = [
-            "contact_person",
-            "phone",
-            "invoice_title",
-            "tax_id",
-            "invoice_number",
-            "invoice_date",
-            "invoice_issue_date",
-            "notes",
-        ]
 
         for field in required_fields:
             if field not in invoice:

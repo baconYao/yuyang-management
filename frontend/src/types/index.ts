@@ -46,3 +46,61 @@ export interface Contract {
 export interface ContractWithCustomer extends Contract {
   customer_name?: string | null;
 }
+
+export type BillStatus =
+  | 'DRAFT'
+  | 'SENT'
+  | 'PROCESSING'
+  | 'PAID'
+  | 'OVERDUE'
+  | 'CANCELLED';
+
+/** One line item returned with a bill (GET /bills, GET /bills/{id}). */
+export interface BillItem {
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  sort_order: number;
+}
+
+export interface Bill {
+  bill_number: string;
+  customer_id: string;
+  contract_id: string;
+  amount: number;
+  tax_amount: number;
+  monthly_rent: number;
+  invoice_type: string | null;
+  status: BillStatus;
+  notes: string;
+  previous_bill_number: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  due_date: string | null;
+  sent_at: string | null;
+  paid_at: string | null;
+  items?: BillItem[];
+}
+
+/** One line item in PATCH /bills/{bill_number} (items array). */
+export interface BillItemUpdatePayload {
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  sort_order: number;
+}
+
+/** Payload for PATCH /bills/{bill_number}. status is required. */
+export interface BillUpdatePayload {
+  status: BillStatus;
+  notes?: string | null;
+  tax_amount?: number | null;
+  monthly_rent?: number | null;
+  invoice_type?: string | null;
+  due_date?: string | null;
+  sent_at?: string | null;
+  paid_at?: string | null;
+  items?: BillItemUpdatePayload[];
+}

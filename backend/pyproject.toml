@@ -2,7 +2,7 @@
 name = "yuyang-api"
 version = "1.0.0"
 description = "宇陽科技管理系統 RESTful API"
-requires-python = "==3.12"
+requires-python = "==3.12.*"
 dependencies = [
     "fastapi==0.109.0",
     "pydantic[email]==2.12.4",

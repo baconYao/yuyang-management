@@ -5,7 +5,7 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=test_db
+      - POSTGRES_DB=yuyang_db
     ports:
       - "5432:5432"
     volumes:
@@ -34,7 +34,7 @@ services:
       - POSTGRES_PORT=5432
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=test_db
+      - POSTGRES_DB=yuyang_db
     networks:
       - yuyang-network
 
@@ -44,4 +44,3 @@ volumes:
 networks:
   yuyang-network:
     driver: bridge
-

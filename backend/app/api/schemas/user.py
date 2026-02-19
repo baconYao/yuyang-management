@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from app.core.security import validate_password
 
 
-class UserType(str, Enum):
+class UserType(StrEnum):
     """User type enumeration"""
 
     ADMIN = "ADMIN"

@@ -1,4 +1,7 @@
 import logging
+import random
+import string
+from datetime import date
 from uuid import UUID
 
 from sqlalchemy import delete
@@ -14,6 +17,13 @@ from app.database.models.contract import Contract
 from app.database.models.customer import Customer
 
 logger = logging.getLogger(__name__)
+
+
+def _generate_contract_number() -> str:
+    """Generate contract_number: C-<Year>-<Month>-<5 random uppercase letters>."""  # noqa: E501
+    today = date.today()
+    suffix = "".join(random.choices(string.ascii_uppercase, k=5))
+    return f"C-{today.year}-{today.month:02d}-{suffix}"
 
 
 class ContractService:
@@ -100,7 +110,7 @@ class ContractService:
             billing_interval=contract.billing_interval,
             notes=contract.notes,
             status=contract.status,
-            contract_number=contract.contract_number,
+            contract_number=_generate_contract_number(),
             signed_date=contract.signed_date,
             payment_method=contract.payment_method,
             next_billing_date=contract.next_billing_date,

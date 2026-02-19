@@ -1,5 +1,6 @@
 # flake8: noqa: E501
 
+import re
 from datetime import datetime, timedelta
 from uuid import uuid4
 
@@ -18,6 +19,9 @@ from app.api.schemas.customer import CustomerType
 from app.database.models.contract import Contract
 from app.database.models.customer import Customer
 from app.services.contract_service import ContractService
+
+# Server-generated contract_number format: C-YYYY-MM-XXXXX (5 uppercase letters)
+CONTRACT_NUMBER_PATTERN = re.compile(r"^C-\d{4}-\d{2}-[A-Z]{5}$")
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -78,7 +82,6 @@ async def test_get_by_id_success(contract_service, test_session, sample_customer
         billing_interval=BillingInterval.THREE_MONTHS,
         notes="測試備註",
         status=ContractStatus.ACTIVE,
-        contract_number="CONTRACT-2024-001",
     )
 
     created_contract = await contract_service.create(contract_data)
@@ -88,7 +91,7 @@ async def test_get_by_id_success(contract_service, test_session, sample_customer
     # Get contract by ID
     result = await contract_service.get_by_id(contract_id)
 
-    # Verify result
+    # Verify result (contract_number is server-generated)
     assert result is not None
     assert result.id == contract_id
     assert result.product_name == "測試商品"
@@ -96,7 +99,8 @@ async def test_get_by_id_success(contract_service, test_session, sample_customer
     assert result.billing_interval == BillingInterval.THREE_MONTHS
     assert result.notes == "測試備註"
     assert result.status == ContractStatus.ACTIVE
-    assert result.contract_number == "CONTRACT-2024-001"
+    assert result.contract_number is not None
+    assert CONTRACT_NUMBER_PATTERN.match(result.contract_number)
     assert result.customer_id == sample_customer.id
 
     # Cleanup
@@ -132,6 +136,53 @@ async def test_get_by_id_with_none_id(contract_service):
     """
     result = await contract_service.get_by_id(None)  # type: ignore[arg-type]
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_create_with_new_billing_intervals(
+    contract_service, test_session, sample_customer
+):
+    """
+    Test create() accepts new billing intervals: ONE_MONTH, TWO_MONTHS,
+    TWENTY_FOUR_MONTHS, THIRTY_SIX_MONTHS.
+    """
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
+
+    from app.api.schemas.contract import ContractWrite
+
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=365)
+
+    for interval in (
+        BillingInterval.ONE_MONTH,
+        BillingInterval.TWO_MONTHS,
+        BillingInterval.TWENTY_FOUR_MONTHS,
+        BillingInterval.THIRTY_SIX_MONTHS,
+    ):
+        contract_data = ContractWrite(
+            customer_id=sample_customer.id,
+            product_name=f"Product {interval.name}",
+            start_date=start_date,
+            end_date=end_date,
+            monthly_rent=10000,
+            billing_interval=interval,
+            status=ContractStatus.ACTIVE,
+        )
+        created = await contract_service.create(contract_data)
+        assert created is not None
+        assert created.billing_interval == interval
+
+    result = await contract_service.get_all()
+    assert len(result) >= 4
+    intervals = [c.billing_interval for c in result]
+    assert BillingInterval.ONE_MONTH in intervals
+    assert BillingInterval.TWO_MONTHS in intervals
+    assert BillingInterval.TWENTY_FOUR_MONTHS in intervals
+    assert BillingInterval.THIRTY_SIX_MONTHS in intervals
+
+    await test_session.execute(delete(Contract))
+    await test_session.commit()
 
 
 @pytest.mark.asyncio
@@ -194,14 +245,25 @@ async def test_get_all_with_contracts(contract_service, test_session, sample_cus
         status=ContractStatus.ACTIVE,
     )
 
+    contract4_data = ContractWrite(
+        customer_id=sample_customer.id,
+        product_name="商品4",
+        start_date=start_date,
+        end_date=end_date,
+        monthly_rent=25000,
+        billing_interval=BillingInterval.TWENTY_FOUR_MONTHS,
+        status=ContractStatus.ACTIVE,
+    )
+
     await contract_service.create(contract1_data)
     await contract_service.create(contract2_data)
     await contract_service.create(contract3_data)
+    await contract_service.create(contract4_data)
 
     result = await contract_service.get_all()
 
     # Verify returned count
-    assert len(result) == 3
+    assert len(result) == 4
 
     # Verify each contract's data
     assert all(contract.id is not None for contract in result)
@@ -212,18 +274,21 @@ async def test_get_all_with_contracts(contract_service, test_session, sample_cus
     assert "商品1" in product_names
     assert "商品2" in product_names
     assert "商品3" in product_names
+    assert "商品4" in product_names
 
     # Verify monthly rents
     monthly_rents = [contract.monthly_rent for contract in result]
     assert 10000 in monthly_rents
     assert 15000 in monthly_rents
     assert 20000 in monthly_rents
+    assert 25000 in monthly_rents
 
-    # Verify billing intervals
+    # Verify billing intervals (including new: ONE_MONTH, TWO_MONTHS, TWENTY_FOUR_MONTHS, THIRTY_SIX_MONTHS)
     billing_intervals = [contract.billing_interval for contract in result]
     assert BillingInterval.THREE_MONTHS in billing_intervals
     assert BillingInterval.SIX_MONTHS in billing_intervals
     assert BillingInterval.TWELVE_MONTHS in billing_intervals
+    assert BillingInterval.TWENTY_FOUR_MONTHS in billing_intervals
 
     # Verify statuses
     statuses = [contract.status for contract in result]
@@ -407,7 +472,6 @@ async def test_create_contract_success(contract_service, test_session, sample_cu
         billing_interval=BillingInterval.THREE_MONTHS,
         notes="測試備註",
         status=ContractStatus.ACTIVE,
-        contract_number="CONTRACT-2024-001",
         signed_date=start_date - timedelta(days=1),
         payment_method=PaymentMethod.BANK_TRANSFER,
         next_billing_date=start_date + timedelta(days=90),
@@ -415,7 +479,7 @@ async def test_create_contract_success(contract_service, test_session, sample_cu
 
     result = await contract_service.create(contract_data)
 
-    # Verify result
+    # Verify result (contract_number is server-generated)
     assert result is not None
     assert result.id is not None
     assert result.customer_id == sample_customer.id
@@ -424,7 +488,8 @@ async def test_create_contract_success(contract_service, test_session, sample_cu
     assert result.billing_interval == BillingInterval.THREE_MONTHS
     assert result.notes == "測試備註"
     assert result.status == ContractStatus.ACTIVE
-    assert result.contract_number == "CONTRACT-2024-001"
+    assert result.contract_number is not None
+    assert CONTRACT_NUMBER_PATTERN.match(result.contract_number)
     assert result.payment_method == PaymentMethod.BANK_TRANSFER
     assert result.created_at is not None
     assert result.updated_at is not None
@@ -481,7 +546,8 @@ async def test_create_contract_with_minimal_fields(
     assert result.billing_interval == BillingInterval.SIX_MONTHS
     assert result.status == ContractStatus.PENDING
     assert result.notes is None
-    assert result.contract_number is None
+    assert result.contract_number is not None
+    assert CONTRACT_NUMBER_PATTERN.match(result.contract_number)
     assert result.signed_date is None
     assert result.payment_method is None
     assert result.next_billing_date is None
@@ -740,13 +806,13 @@ async def test_update_contract_partial_update(
 
     # Update only status
     update_data = ContractUpdate(
-        status=ContractStatus.SUSPENDED,
+        status=ContractStatus.TRIAL,
     )
 
     result = await contract_service.update(contract_id, update_data)
 
     # Verify only status was updated
-    assert result.status == ContractStatus.SUSPENDED
+    assert result.status == ContractStatus.TRIAL
     assert result.billing_interval == original_billing_interval
     assert result.payment_method == original_payment_method
     assert result.notes == "Original Notes"

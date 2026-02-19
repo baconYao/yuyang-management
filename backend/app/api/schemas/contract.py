@@ -1,23 +1,23 @@
 # flake8: noqa: E501
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class ContractStatus(str, Enum):
+class ContractStatus(StrEnum):
     """Contract status enumeration"""
 
-    ACTIVE = "ACTIVE"
-    EXPIRED = "EXPIRED"
-    TERMINATED = "TERMINATED"
-    PENDING = "PENDING"
-    SUSPENDED = "SUSPENDED"
+    ACTIVE = "ACTIVE"  # 生效
+    TERMINATED = "TERMINATED"  # 終止 (提前結束)
+    PENDING = "PENDING"  # 待簽署
+    TRIAL = "TRIAL"  # 試用
+    ENDED = "ENDED"  # 結束 (正常結束)
 
 
-class PaymentMethod(str, Enum):
+class PaymentMethod(StrEnum):
     """Payment method enumeration"""
 
     BANK_TRANSFER = "BANK_TRANSFER"
@@ -26,16 +26,19 @@ class PaymentMethod(str, Enum):
     OTHER = "OTHER"
 
 
-class BillingInterval(str, Enum):
+class BillingInterval(StrEnum):
     """Billing interval enumeration"""
 
+    ONE_MONTH = "1"
+    TWO_MONTHS = "2"
     THREE_MONTHS = "3"
     SIX_MONTHS = "6"
     TWELVE_MONTHS = "12"
     TWENTY_FOUR_MONTHS = "24"
+    THIRTY_SIX_MONTHS = "36"
 
 
-class InvoiceType(str, Enum):
+class InvoiceType(StrEnum):
     """Invoice type enumeration"""
 
     NO_INVOICE = "NO_INVOICE"  # 不開立發票
@@ -61,7 +64,9 @@ class BaseContract(BaseModel):
     )
     status: ContractStatus = Field(..., description="Contract status")
     contract_number: str | None = Field(
-        None, description="Contract number (e.g., CONTRACT-2024-001)"
+        None,
+        description="Contract number (e.g., C-2026-01-xsdwc); server-generated on create.",  # noqa: E501
+        max_length=15,
     )
     # 合約簽署日期，不為合約開始日期
     signed_date: datetime | None = Field(None, description="Contract signed date")
