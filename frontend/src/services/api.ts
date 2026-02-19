@@ -109,4 +109,11 @@ export const billApi = {
     );
     return response.data;
   },
+
+  downloadPdf: async (billNumber: string): Promise<Blob> => {
+    const response = await api.get(`/bills/${encodeURIComponent(billNumber)}/pdf`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
 };

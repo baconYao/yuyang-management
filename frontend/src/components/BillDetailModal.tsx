@@ -112,6 +112,8 @@ export default function BillDetailModal({
   const [isEditing, setIsEditing] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     status: 'DRAFT' as BillStatus,
     notes: '',
@@ -161,6 +163,7 @@ export default function BillDetailModal({
     });
     setIsEditing(false);
     setSaveError(null);
+    setPdfError(null);
     fetchContractAndInitTable(bill.contract_id, bill);
   }, [bill, fetchContractAndInitTable]);
 
@@ -244,6 +247,25 @@ export default function BillDetailModal({
     setTableRows((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleDownloadPdf = async () => {
+    if (!bill) return;
+    setPdfError(null);
+    setPdfLoading(true);
+    try {
+      const blob = await billApi.downloadPdf(bill.bill_number);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${bill.bill_number}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      setPdfError(err instanceof Error ? err.message : '下載失敗');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
@@ -265,11 +287,13 @@ export default function BillDetailModal({
               <>
                 <button
                   type="button"
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                  onClick={handleDownloadPdf}
+                  disabled={pdfLoading}
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 disabled:opacity-50"
                   aria-label="下載帳單"
                   title="下載帳單"
                 >
-                  下載帳單
+                  {pdfLoading ? '下載中…' : '下載帳單'}
                 </button>
                 <button
                   type="button"
@@ -294,6 +318,11 @@ export default function BillDetailModal({
         </div>
 
         <div className="px-6 py-4 overflow-y-auto flex-1">
+          {pdfError && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">
+              {pdfError}
+            </div>
+          )}
           {isEditing ? (
             <form onSubmit={handleSaveEdit} className="space-y-4">
               {saveError && (

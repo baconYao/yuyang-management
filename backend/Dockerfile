@@ -1,5 +1,18 @@
 FROM python:3.12-slim
 
+# WeasyPrint system dependencies (Pango, Cairo, GObject, etc.)
+# + fonts-noto-cjk for Chinese (Traditional) text in PDF
+# libgdk-pixbuf omitted on Debian Trixie (package renamed); optional for image-heavy PDFs
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    libglib2.0-0 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libpangoft2-1.0-0 \
+    libcairo2 \
+    shared-mime-info \
+    fonts-noto-cjk \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 RUN chmod +x /usr/local/bin/uv
 

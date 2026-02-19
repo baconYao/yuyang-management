@@ -84,6 +84,29 @@ class BillService:
             return None
         return self._bill_to_read(db_bill)
 
+    async def get_bill_with_customer(
+        self, bill_number: str
+    ) -> tuple[BillRead, Customer] | None:
+        """
+        Get a bill and its customer by bill_number.
+
+        Args:
+            bill_number: The bill number (primary key) of the bill to retrieve
+
+        Returns:
+            (BillRead, Customer) if both found, None if bill or customer missing
+        """
+        bill_read = await self.get_by_bill_number(bill_number)
+        if bill_read is None:
+            return None
+        cust_result = await self._session.execute(
+            select(Customer).where(Customer.id == bill_read.customer_id)
+        )
+        db_customer = cust_result.scalar_one_or_none()
+        if db_customer is None:
+            return None
+        return (bill_read, db_customer)
+
     async def get_all(
         self,
         customer_id: UUID | None = None,
