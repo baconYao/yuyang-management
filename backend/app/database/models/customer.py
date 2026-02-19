@@ -32,10 +32,10 @@ class Customer(SQLModel, table=True):
     )
 
     customer_name: str
-    invoice_title: str
-    invoice_number: str
+    invoice_title: str | None = None
+    invoice_number: str | None = None
     contact_phone: str
-    messaging_app_line: str
+    messaging_app_line: str | None = None
     address: str
     primary_contact: str
     customer_type: CustomerType

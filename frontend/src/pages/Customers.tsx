@@ -4,6 +4,7 @@ import type { Customer, Contract, ContractWithCustomer } from '../types';
 import type { CustomerStatus } from '../types';
 import { CustomerType } from '../types';
 import ContractDetailModal from '../components/ContractDetailModal';
+import AddCustomerModal from '../components/AddCustomerModal';
 import { getContractStatusDisplay } from '../utils/contractStatusDisplay';
 import { getCustomerTypeLabel } from '../utils/customerTypeLabels';
 
@@ -43,6 +44,7 @@ export default function Customers() {
   const [modalContractsLoading, setModalContractsLoading] = useState(false);
   const [selectedContractInModal, setSelectedContractInModal] =
     useState<ContractWithCustomer | null>(null);
+  const [addCustomerModalOpen, setAddCustomerModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -135,6 +137,11 @@ export default function Customers() {
     setSelectedContractInModal(updated);
   };
 
+  const handleCustomerCreated = (customer: Customer) => {
+    setCustomers((prev) => [customer, ...prev]);
+    setAddCustomerModalOpen(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -145,7 +152,16 @@ export default function Customers() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">客戶管理</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-gray-800">客戶管理</h1>
+        <button
+          type="button"
+          onClick={() => setAddCustomerModalOpen(true)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          新增客戶
+        </button>
+      </div>
 
       <div className="bg-white rounded-lg shadow-md p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
@@ -294,15 +310,11 @@ export default function Customers() {
       {selectedCustomer && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-          onClick={closeModal}
           role="dialog"
           aria-modal="true"
           aria-labelledby="customer-modal-title"
         >
-          <div
-            className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <h2 id="customer-modal-title" className="text-xl font-bold text-gray-800">
                 客戶詳情
@@ -446,6 +458,12 @@ export default function Customers() {
         contract={selectedContractInModal}
         onClose={() => setSelectedContractInModal(null)}
         onContractUpdated={handleContractUpdated}
+      />
+
+      <AddCustomerModal
+        open={addCustomerModalOpen}
+        onClose={() => setAddCustomerModalOpen(false)}
+        onSuccess={handleCustomerCreated}
       />
     </div>
   );
