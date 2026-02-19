@@ -5,7 +5,7 @@ import type { CustomerStatus } from '../types';
 import { CustomerType } from '../types';
 import ContractDetailModal from '../components/ContractDetailModal';
 import AddCustomerModal from '../components/AddCustomerModal';
-import { getContractStatusDisplay } from '../utils/contractStatusDisplay';
+import CustomerDetailModal from '../components/CustomerDetailModal';
 import { getCustomerTypeLabel } from '../utils/customerTypeLabels';
 
 const ITEMS_PER_PAGE = 15;
@@ -20,16 +20,6 @@ function formatContactInfo(customer: Customer): string {
 function getStatusLabel(status: Customer['status']): string {
   if (status === 'TERMINATED') return '無合作';
   return '合作中';
-}
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
-  } catch {
-    return iso;
-  }
 }
 
 export default function Customers() {
@@ -140,6 +130,13 @@ export default function Customers() {
   const handleCustomerCreated = (customer: Customer) => {
     setCustomers((prev) => [customer, ...prev]);
     setAddCustomerModalOpen(false);
+  };
+
+  const handleCustomerUpdated = (updated: Customer) => {
+    setCustomers((prev) =>
+      prev.map((c) => (c.id === updated.id ? updated : c))
+    );
+    setSelectedCustomer(updated);
   };
 
   if (loading) {
@@ -306,153 +303,14 @@ export default function Customers() {
         )}
       </div>
 
-      {/* Customer detail modal */}
-      {selectedCustomer && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="customer-modal-title"
-        >
-          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 id="customer-modal-title" className="text-xl font-bold text-gray-800">
-                客戶詳情
-              </h2>
-              <button
-                type="button"
-                onClick={closeModal}
-                className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
-                aria-label="關閉"
-              >
-                <span className="text-2xl leading-none">&times;</span>
-              </button>
-            </div>
-
-            <div className="px-6 py-4 overflow-y-auto flex-1">
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                <div>
-                  <dt className="text-gray-500 font-medium">客戶名稱</dt>
-                  <dd className="text-gray-900">{selectedCustomer.customer_name || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-gray-500 font-medium">發票抬頭</dt>
-                  <dd className="text-gray-900">{selectedCustomer.invoice_title || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-gray-500 font-medium">統一編號</dt>
-                  <dd className="text-gray-900">{selectedCustomer.invoice_number || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-gray-500 font-medium">聯絡人</dt>
-                  <dd className="text-gray-900">{selectedCustomer.primary_contact || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-gray-500 font-medium">聯絡電話</dt>
-                  <dd className="text-gray-900">{selectedCustomer.contact_phone || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-gray-500 font-medium">LINE</dt>
-                  <dd className="text-gray-900">{selectedCustomer.messaging_app_line || '—'}</dd>
-                </div>
-                <div className="sm:col-span-2">
-                  <dt className="text-gray-500 font-medium">地址</dt>
-                  <dd className="text-gray-900">{selectedCustomer.address || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-gray-500 font-medium">客戶類型</dt>
-                  <dd className="text-gray-900">
-                    {getCustomerTypeLabel(selectedCustomer.customer_type)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-gray-500 font-medium">合作狀態</dt>
-                  <dd>
-                    <span
-                      className={`px-2 py-1 text-xs font-semibold rounded ${
-                        (selectedCustomer.status ?? 'ACTIVE') === 'TERMINATED'
-                          ? 'bg-gray-200 text-gray-700'
-                          : 'bg-green-100 text-green-800'
-                      }`}
-                    >
-                      {getStatusLabel(selectedCustomer.status)}
-                    </span>
-                  </dd>
-                </div>
-              </dl>
-
-              <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">合約列表</h3>
-              {modalContractsLoading ? (
-                <div className="text-gray-500 py-4">載入合約中...</div>
-              ) : modalContracts.length === 0 ? (
-                <div className="text-gray-500 py-4">此客戶尚無合約</div>
-              ) : (
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          合約編號
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          產品名稱
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          開始日期
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          結束日期
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          月租
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          狀態
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {modalContracts.map((contract) => {
-                        const statusDisplay = getContractStatusDisplay(contract);
-                        return (
-                          <tr
-                            key={contract.id}
-                            onClick={(e) => handleContractRowClick(e, contract)}
-                            className="hover:bg-gray-100 cursor-pointer transition-colors"
-                          >
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {contract.contract_number || '—'}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {contract.product_name}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-700 whitespace-nowrap">
-                              {formatDate(contract.start_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-700 whitespace-nowrap">
-                              {formatDate(contract.end_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-700">
-                              {contract.monthly_rent != null ? `$${contract.monthly_rent}` : '—'}
-                            </td>
-                            <td className="px-4 py-2 text-sm">
-                              <span
-                                className={`px-2 py-0.5 text-xs font-medium rounded ${statusDisplay.className}`}
-                              >
-                                {statusDisplay.label}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <CustomerDetailModal
+        customer={selectedCustomer}
+        onClose={closeModal}
+        onCustomerUpdated={handleCustomerUpdated}
+        contracts={modalContracts}
+        contractsLoading={modalContractsLoading}
+        onContractRowClick={handleContractRowClick}
+      />
 
       <ContractDetailModal
         contract={selectedContractInModal}
