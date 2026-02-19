@@ -1,7 +1,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { contractApi, customerApi } from '../services/api';
 import type { ContractWithCustomer } from '../types';
+import type { Customer } from '../types';
 import ContractDetailModal from '../components/ContractDetailModal';
+import AddContractModal from '../components/AddContractModal';
 import { getContractStatusDisplay } from '../utils/contractStatusDisplay';
 
 const ITEMS_PER_PAGE = 15;
@@ -46,11 +48,13 @@ function formatDate(iso: string | null | undefined): string {
 
 export default function Contracts() {
   const [contracts, setContracts] = useState<ContractWithCustomer[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ContractStatusFilter>('ACTIVE');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedContract, setSelectedContract] = useState<ContractWithCustomer | null>(null);
+  const [addContractModalOpen, setAddContractModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -59,6 +63,8 @@ export default function Contracts() {
           contractApi.getAll(),
           customerApi.getAll(),
         ]);
+
+        setCustomers(customersData);
 
         const customerMap = new Map<string, string | null>();
         customersData.forEach((customer) => {
@@ -130,6 +136,11 @@ export default function Contracts() {
     setSelectedContract(updated);
   };
 
+  const handleContractCreated = (contract: ContractWithCustomer) => {
+    setContracts((prev) => [contract, ...prev]);
+    setAddContractModalOpen(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -140,7 +151,16 @@ export default function Contracts() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">合約管理</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-gray-800">合約管理</h1>
+        <button
+          type="button"
+          onClick={() => setAddContractModalOpen(true)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          新增合約
+        </button>
+      </div>
 
       <div className="bg-white rounded-lg shadow-md p-4 mb-6">
         <div className="flex flex-col sm:flex-row gap-4">
@@ -275,6 +295,13 @@ export default function Contracts() {
         contract={selectedContract}
         onClose={() => setSelectedContract(null)}
         onContractUpdated={handleContractUpdated}
+      />
+
+      <AddContractModal
+        open={addContractModalOpen}
+        onClose={() => setAddContractModalOpen(false)}
+        onSuccess={handleContractCreated}
+        customers={customers}
       />
     </div>
   );

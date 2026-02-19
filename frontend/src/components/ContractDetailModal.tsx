@@ -256,133 +256,212 @@ export default function ContractDetailModal({
 
         <div className="px-6 py-4 overflow-y-auto flex-1">
           {isEditing ? (
-            <form onSubmit={handleSaveEdit} className="space-y-4">
-              {saveError && (
-                <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm">
-                  {saveError}
+            <form onSubmit={handleSaveEdit} className="flex flex-col flex-1 overflow-hidden">
+              <div className="overflow-y-auto flex-1">
+                {saveError && (
+                  <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">
+                    {saveError}
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      合約編號
+                    </label>
+                    <div className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-900 text-sm">
+                      {contract.contract_number || contract.id?.slice(0, 8) || '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      客戶名稱
+                    </label>
+                    <div className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-900 text-sm">
+                      {contract.customer_name || '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      產品名稱
+                    </label>
+                    <div className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-900 text-sm">
+                      {contract.product_name || '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      起始日期
+                    </label>
+                    <div className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-900 text-sm">
+                      {formatDate(contract.start_date)}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      結束日期
+                    </label>
+                    <div className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-900 text-sm">
+                      {formatDate(contract.end_date)}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      月租
+                    </label>
+                    <div className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-900 text-sm">
+                      {contract.monthly_rent != null ? `$${contract.monthly_rent}` : '—'}
+                    </div>
+                  </div>
                 </div>
-              )}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">備註</label>
-                <textarea
-                  value={editForm.notes}
-                  onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      合約狀態
+                    </label>
+                    <select
+                      value={editForm.status}
+                      onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {CONTRACT_STATUS_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {editForm.status === 'ACTIVE' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        下次帳單日
+                      </label>
+                      <input
+                        type="date"
+                        value={editForm.next_billing_date}
+                        onChange={(e) =>
+                          setEditForm((f) => ({ ...f, next_billing_date: e.target.value }))
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      付款方式
+                    </label>
+                    <select
+                      value={editForm.payment_method}
+                      onChange={(e) =>
+                        setEditForm((f) => ({ ...f, payment_method: e.target.value }))
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">請選擇</option>
+                      {PAYMENT_METHOD_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      發票類型
+                    </label>
+                    <select
+                      value={editForm.invoice_type}
+                      onChange={(e) =>
+                        setEditForm((f) => ({ ...f, invoice_type: e.target.value }))
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">請選擇</option>
+                      {INVOICE_TYPE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      帳單週期
+                    </label>
+                    <select
+                      value={editForm.billing_interval}
+                      onChange={(e) =>
+                        setEditForm((f) => ({ ...f, billing_interval: e.target.value }))
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">請選擇</option>
+                      {BILLING_INTERVAL_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {editForm.status === 'TERMINATED' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          終止日期
+                        </label>
+                        <input
+                          type="date"
+                          value={editForm.terminated_at}
+                          onChange={(e) =>
+                            setEditForm((f) => ({ ...f, terminated_at: e.target.value }))
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          終止原因
+                        </label>
+                        <input
+                          type="text"
+                          value={editForm.termination_reason}
+                          onChange={(e) =>
+                            setEditForm((f) => ({ ...f, termination_reason: e.target.value }))
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="選填"
+                        />
+                      </div>
+                    </>
+                  )}
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      備註
+                    </label>
+                    <textarea
+                      value={editForm.notes}
+                      onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+                      rows={2}
+                      maxLength={300}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="選填，最多 300 字"
+                    />
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">狀態</label>
-                <select
-                  value={editForm.status}
-                  onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {CONTRACT_STATUS_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">付款方式</label>
-                <select
-                  value={editForm.payment_method}
-                  onChange={(e) =>
-                    setEditForm((f) => ({ ...f, payment_method: e.target.value }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">—</option>
-                  {PAYMENT_METHOD_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">下次帳單日</label>
-                <input
-                  type="date"
-                  value={editForm.next_billing_date}
-                  onChange={(e) =>
-                    setEditForm((f) => ({ ...f, next_billing_date: e.target.value }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">終止日期</label>
-                <input
-                  type="date"
-                  value={editForm.terminated_at}
-                  onChange={(e) =>
-                    setEditForm((f) => ({ ...f, terminated_at: e.target.value }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">終止原因</label>
-                <input
-                  type="text"
-                  value={editForm.termination_reason}
-                  onChange={(e) =>
-                    setEditForm((f) => ({ ...f, termination_reason: e.target.value }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">帳單週期（月）</label>
-                <select
-                  value={editForm.billing_interval}
-                  onChange={(e) =>
-                    setEditForm((f) => ({ ...f, billing_interval: e.target.value }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">—</option>
-                  {BILLING_INTERVAL_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">發票類型</label>
-                <select
-                  value={editForm.invoice_type}
-                  onChange={(e) =>
-                    setEditForm((f) => ({ ...f, invoice_type: e.target.value }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">—</option>
-                  {INVOICE_TYPE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="submit"
-                  disabled={saveLoading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {saveLoading ? '儲存中...' : '儲存'}
-                </button>
+              <div className="pt-4 mt-4 border-t border-gray-200 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={handleCancelEdit}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
                 >
                   取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={saveLoading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saveLoading ? '儲存中...' : '儲存'}
                 </button>
               </div>
             </form>
