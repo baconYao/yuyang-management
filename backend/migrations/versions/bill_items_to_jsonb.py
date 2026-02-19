@@ -5,6 +5,7 @@ Revises: f1a2b3c4d5e6
 Create Date: 2026-02-17
 
 """
+
 import json
 from collections.abc import Sequence
 
@@ -43,20 +44,21 @@ def upgrade() -> None:
         bn = row[0]
         if bn not in by_bill:
             by_bill[bn] = []
-        by_bill[bn].append({
-            "id": str(row[1]),
-            "product_name": row[2] or "",
-            "quantity": float(row[3]),
-            "unit_price": float(row[4]),
-            "amount": float(row[5]),
-            "sort_order": int(row[6]),
-        })
+        by_bill[bn].append(
+            {
+                "id": str(row[1]),
+                "product_name": row[2] or "",
+                "quantity": float(row[3]),
+                "unit_price": float(row[4]),
+                "amount": float(row[5]),
+                "sort_order": int(row[6]),
+            }
+        )
 
     for bill_number, items_list in by_bill.items():
         conn.execute(
             sa.text(
-                "UPDATE bill SET items = CAST(:items AS jsonb) "
-                "WHERE bill_number = :bn"
+                "UPDATE bill SET items = CAST(:items AS jsonb) WHERE bill_number = :bn"
             ),
             {"items": json.dumps(items_list), "bn": bill_number},
         )
@@ -69,9 +71,7 @@ def downgrade() -> None:
         "bill_item",
         sa.Column("id", postgresql.UUID(), nullable=False),
         sa.Column("bill_number", sa.String(15), nullable=False),
-        sa.Column(
-            "product_name", sa.String(200), nullable=False, server_default=""
-        ),
+        sa.Column("product_name", sa.String(200), nullable=False, server_default=""),
         sa.Column(
             "quantity",
             sa.DOUBLE_PRECISION(),
@@ -90,9 +90,7 @@ def downgrade() -> None:
             nullable=False,
             server_default="0",
         ),
-        sa.Column(
-            "sort_order", sa.Integer(), nullable=False, server_default="0"
-        ),
+        sa.Column("sort_order", sa.Integer(), nullable=False, server_default="0"),
         sa.ForeignKeyConstraint(
             ["bill_number"],
             ["bill.bill_number"],

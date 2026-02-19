@@ -401,7 +401,9 @@ async def generate_fake_data():
             interval_months = int(contract.billing_interval.value)
             billing_dates: list[datetime] = []
             d = contract.start_date
-            while len(billing_dates) < max_bills_per_contract and d <= contract.end_date:
+            while (
+                len(billing_dates) < max_bills_per_contract and d <= contract.end_date
+            ):
                 billing_dates.append(d)
                 d += timedelta(days=interval_months * 30)
             if not billing_dates:

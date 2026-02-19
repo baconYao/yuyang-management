@@ -5,6 +5,7 @@ Revises: e0f1a2b3c4d5
 Create Date: 2026-02-12
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -24,8 +25,12 @@ def upgrade() -> None:
         sa.Column("id", postgresql.UUID(), nullable=False),
         sa.Column("bill_number", sa.String(15), nullable=False),
         sa.Column("product_name", sa.String(200), nullable=False, server_default=""),
-        sa.Column("quantity", sa.DOUBLE_PRECISION(), nullable=False, server_default="0"),
-        sa.Column("unit_price", sa.DOUBLE_PRECISION(), nullable=False, server_default="0"),
+        sa.Column(
+            "quantity", sa.DOUBLE_PRECISION(), nullable=False, server_default="0"
+        ),
+        sa.Column(
+            "unit_price", sa.DOUBLE_PRECISION(), nullable=False, server_default="0"
+        ),
         sa.Column("amount", sa.DOUBLE_PRECISION(), nullable=False, server_default="0"),
         sa.Column("sort_order", sa.Integer(), nullable=False, server_default="0"),
         sa.ForeignKeyConstraint(
