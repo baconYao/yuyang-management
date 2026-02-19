@@ -5,8 +5,8 @@ Revises: f1a2b3c4d5e6
 Create Date: 2026-02-17
 
 """
-from collections.abc import Sequence
 import json
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
