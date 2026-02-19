@@ -1,3 +1,4 @@
+# flake8: noqa: E501
 """Move bill line items into bill.items JSONB (single table); drop bill_item.
 
 Revision ID: a2b3c4d5e6f7

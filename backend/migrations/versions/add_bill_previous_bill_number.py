@@ -1,3 +1,4 @@
+# flake8: noqa: E501
 """add bill previous_bill_number (self-ref to previous bill under same contract)
 
 Revision ID: e0f1a2b3c4d5

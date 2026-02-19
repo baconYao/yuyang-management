@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, String, text
+from sqlalchemy import JSON, ForeignKey, String
 from sqlalchemy.dialects import postgresql
 from sqlmodel import Column, Field, SQLModel
 
@@ -125,9 +125,8 @@ class Bill(SQLModel, table=True):
     items: list[dict] = Field(
         default_factory=list,
         sa_column=Column(
-            postgresql.JSONB(),
+            JSON(),
             nullable=False,
-            server_default=text("'[]'::jsonb"),
         ),
         description="Line items (品名、數量、單價、金額) as JSON array.",
     )
