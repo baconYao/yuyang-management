@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import (
@@ -15,7 +15,7 @@ from pydantic import (
 from app.api.schemas.contract import InvoiceType
 
 
-class BillStatus(str, Enum):
+class BillStatus(StrEnum):
     DRAFT = "DRAFT"  # 待寄送/草稿。系統已產生帳單金額，但還沒發送給客戶（檢查期）。
     SENT = "SENT"  # 已寄出。已寄給客戶，等待對方付款中。
     PROCESSING = (

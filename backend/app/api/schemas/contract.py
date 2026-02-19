@@ -1,13 +1,13 @@
 # flake8: noqa: E501
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class ContractStatus(str, Enum):
+class ContractStatus(StrEnum):
     """Contract status enumeration"""
 
     ACTIVE = "ACTIVE"  # 生效
@@ -17,7 +17,7 @@ class ContractStatus(str, Enum):
     ENDED = "ENDED"  # 結束 (正常結束)
 
 
-class PaymentMethod(str, Enum):
+class PaymentMethod(StrEnum):
     """Payment method enumeration"""
 
     BANK_TRANSFER = "BANK_TRANSFER"
@@ -26,7 +26,7 @@ class PaymentMethod(str, Enum):
     OTHER = "OTHER"
 
 
-class BillingInterval(str, Enum):
+class BillingInterval(StrEnum):
     """Billing interval enumeration"""
 
     ONE_MONTH = "1"
@@ -38,7 +38,7 @@ class BillingInterval(str, Enum):
     THIRTY_SIX_MONTHS = "36"
 
 
-class InvoiceType(str, Enum):
+class InvoiceType(StrEnum):
     """Invoice type enumeration"""
 
     NO_INVOICE = "NO_INVOICE"  # 不開立發票
