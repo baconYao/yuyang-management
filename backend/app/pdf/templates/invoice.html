@@ -16,7 +16,9 @@
           <div class="document-type">
             <span class="invoice-title">請款單</span>
           </div>
-          <div class="invoice-date">
+          <div class="invoice-date-row">
+            <span class="date-label">請款單單號：</span>
+            <span class="date-value">{{ invoice.bill_number }}</span>
             <span class="date-label">請款日期：</span>
             <span class="date-value">{{ invoice.invoice_date }}</span>
           </div>

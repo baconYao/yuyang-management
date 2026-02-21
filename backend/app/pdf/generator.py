@@ -6,7 +6,6 @@ Uses Jinja2 + WeasyPrint; writes to BytesIO and returns bytes.
 import io
 import os
 import re
-from datetime import datetime
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
@@ -91,17 +90,18 @@ def _prepare_invoice_data(invoice_data: dict[str, Any]) -> dict[str, Any]:
     invoice_type = invoice_data.get("invoice_type", "")
     totals = _calculate_totals(processed_items, invoice_type)
 
-    invoice_issue_date = invoice_data.get("invoice_issue_date", "")
-    invoice_date = datetime.now().strftime("%Y-%m-%d")
+    # invoice_issue_date = invoice_data.get("invoice_issue_date", "")
+    # invoice_date = datetime.now().strftime("%Y-%m-%d")
 
     return {
+        "bill_number": invoice_data.get("bill_number", ""),
         "customer_name": invoice_data.get("customer_name", ""),
         "contact_person": invoice_data.get("contact_person", ""),
         "phone": invoice_data.get("phone", ""),
         "invoice_title": invoice_data.get("invoice_title", ""),
         "invoice_number": invoice_data.get("invoice_number", ""),
-        "invoice_date": invoice_date,
-        "invoice_issue_date": invoice_issue_date,
+        "invoice_date": "",
+        "invoice_issue_date": "",
         "tax_id": invoice_data.get("tax_id", ""),
         "invoice_type": invoice_type,
         "notes": invoice_data.get("notes", ""),

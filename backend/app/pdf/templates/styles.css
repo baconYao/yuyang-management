@@ -56,10 +56,15 @@ body {
   margin-bottom: 8px;
 }
 
-.invoice-date {
+.invoice-date,
+.invoice-date-row {
   font-size: 12px;
   color: #666;
   margin-top: 5px;
+}
+
+.invoice-date-row .date-value {
+  margin-right: 1.5em;
 }
 
 .date-label {

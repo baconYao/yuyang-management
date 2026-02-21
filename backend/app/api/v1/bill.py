@@ -105,6 +105,7 @@ async def get_bill_pdf(bill_number: str, service: BillServiceDep):
             invoice_issue_date = str(dt)[:10]
 
     invoice_data = {
+        "bill_number": bill_number,
         "customer_name": customer.customer_name or "",
         "invoice_title": customer.invoice_title or "",
         "contact_person": customer.primary_contact or "",
