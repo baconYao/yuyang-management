@@ -55,6 +55,22 @@ function formatDate(iso: string | null | undefined): string {
   }
 }
 
+/** 將 YYYY-MM-DD 以日曆日顯示，不因時區造成差一天（不當成 UTC 午夜解析）。 */
+function formatDateOnly(ymd: string | null | undefined): string {
+  if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd ? formatDate(ymd) : '—';
+  try {
+    const [y, m, d] = ymd.split('-').map(Number);
+    const d2 = new Date(y, m - 1, d);
+    return d2.toLocaleDateString('zh-TW', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  } catch {
+    return ymd;
+  }
+}
+
 function toDateInputValue(iso: string | null | undefined): string {
   if (!iso) return '';
   try {
@@ -73,6 +89,42 @@ function getInvoiceTypeLabel(value: string | null | undefined): string {
 function getBillingIntervalDisplay(value: string | null | undefined): string {
   if (!value) return '—';
   return `${value} 月`;
+}
+
+/** 起始日 + 月數，回傳 YYYY-MM-DD。資料庫為 UTC，故以 getUTC* 解讀起始日。 */
+function addMonthsToDate(iso: string | null | undefined, months: number): string {
+  if (!iso || !Number.isInteger(months) || months < 0) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth() + 1;
+  const day = d.getUTCDate();
+  let newM = m + months;
+  let newY = y;
+  while (newM > 12) {
+    newM -= 12;
+    newY += 1;
+  }
+  while (newM < 1) {
+    newM += 12;
+    newY -= 1;
+  }
+  const lastDay = new Date(Date.UTC(newY, newM, 0)).getUTCDate();
+  const newDay = Math.min(day, lastDay);
+  return `${newY}-${String(newM).padStart(2, '0')}-${String(newDay).padStart(2, '0')}`;
+}
+
+/** 帳單結束日期 = (帳單起始日 + 帳單週期月數) - 1 日（該週期最後一天）。純日曆運算，回傳 YYYY-MM-DD。 */
+function getBillEndDate(startIso: string | null | undefined, intervalMonths: number): string {
+  const nextStart = addMonthsToDate(startIso, intervalMonths);
+  if (!nextStart) return '';
+  const [y, m, day] = nextStart.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1, day));
+  d.setUTCDate(d.getUTCDate() - 1);
+  const ey = d.getUTCFullYear();
+  const em = d.getUTCMonth() + 1;
+  const ed = d.getUTCDate();
+  return `${ey}-${String(em).padStart(2, '0')}-${String(ed).padStart(2, '0')}`;
 }
 
 function EditIcon({ className }: { className?: string }) {
@@ -108,6 +160,7 @@ export default function BillDetailModal({
   onBillUpdated,
 }: BillDetailModalProps) {
   const [billingIntervalDisplay, setBillingIntervalDisplay] = useState<string>('—');
+  const [billingIntervalMonths, setBillingIntervalMonths] = useState<number>(1);
   const [tableRows, setTableRows] = useState<BillItemRow[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
@@ -118,7 +171,6 @@ export default function BillDetailModal({
     status: 'DRAFT' as BillStatus,
     notes: '',
     invoice_type: '',
-    due_date: '',
     sent_at: '',
     paid_at: '',
   });
@@ -126,7 +178,9 @@ export default function BillDetailModal({
   const fetchContractAndInitTable = useCallback(async (contractId: string, billData: Bill) => {
     try {
       const contract = await contractApi.getById(contractId);
+      const intervalMonths = parseInt(contract.billing_interval ?? '1', 10) || 1;
       setBillingIntervalDisplay(getBillingIntervalDisplay(contract.billing_interval ?? null));
+      setBillingIntervalMonths(intervalMonths);
       if (billData.items && billData.items.length > 0) {
         const sorted = [...billData.items].sort((a, b) => a.sort_order - b.sort_order);
         setTableRows(
@@ -143,6 +197,7 @@ export default function BillDetailModal({
       }
     } catch {
       setBillingIntervalDisplay('—');
+      setBillingIntervalMonths(1);
       setTableRows([]);
     }
   }, []);
@@ -153,7 +208,6 @@ export default function BillDetailModal({
       status: bill.status,
       notes: bill.notes ?? '',
       invoice_type: bill.invoice_type ?? '',
-      due_date: toDateInputValue(bill.due_date).slice(0, 10),
       sent_at: toDateInputValue(bill.sent_at).slice(0, 10),
       paid_at: toDateInputValue(bill.paid_at).slice(0, 10),
     });
@@ -181,7 +235,7 @@ export default function BillDetailModal({
         status: editForm.status,
         notes: editForm.notes || null,
         invoice_type: editForm.invoice_type || null,
-        due_date: editForm.due_date ? `${editForm.due_date}T00:00:00.000Z` : null,
+        due_date: bill.due_date ? `${toDateInputValue(bill.due_date).slice(0, 10)}T00:00:00.000Z` : null,
         sent_at: editForm.sent_at ? `${editForm.sent_at}T00:00:00.000Z` : null,
         paid_at: editForm.paid_at ? `${editForm.paid_at}T00:00:00.000Z` : null,
         items: tableRows.map((row, index) => ({
@@ -207,7 +261,6 @@ export default function BillDetailModal({
       status: bill.status,
       notes: bill.notes ?? '',
       invoice_type: bill.invoice_type ?? '',
-      due_date: toDateInputValue(bill.due_date).slice(0, 10),
       sent_at: toDateInputValue(bill.sent_at).slice(0, 10),
       paid_at: toDateInputValue(bill.paid_at).slice(0, 10),
     });
@@ -248,7 +301,8 @@ export default function BillDetailModal({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${bill.bill_number}.pdf`;
+      const safeName = (customerName ?? '').replace(/[/\\:*?"<>|]/g, '_').trim() || '客戶';
+      a.download = `${bill.bill_number}_${safeName}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: unknown) {
@@ -361,15 +415,6 @@ export default function BillDetailModal({
                     </option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">繳費期限</label>
-                <input
-                  type="date"
-                  value={editForm.due_date}
-                  onChange={(e) => setEditForm((f) => ({ ...f, due_date: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">寄出時間</label>
@@ -536,6 +581,12 @@ export default function BillDetailModal({
                 <dd className="text-gray-900">{formatDate(bill.created_at)}</dd>
               </div>
               <div>
+                <dt className="text-gray-500 font-medium">帳單結束日期</dt>
+                <dd className="text-gray-900">
+                  {formatDateOnly(getBillEndDate(bill.created_at, billingIntervalMonths)) || '—'}
+                </dd>
+              </div>
+              <div>
                 <dt className="text-gray-500 font-medium">帳單週期</dt>
                 <dd className="text-gray-900">{billingIntervalDisplay}</dd>
               </div>
@@ -552,10 +603,6 @@ export default function BillDetailModal({
                     {statusDisplay.label}
                   </span>
                 </dd>
-              </div>
-              <div>
-                <dt className="text-gray-500 font-medium">繳費期限</dt>
-                <dd className="text-gray-900">{formatDate(bill.due_date)}</dd>
               </div>
               <div>
                 <dt className="text-gray-500 font-medium">寄出時間</dt>

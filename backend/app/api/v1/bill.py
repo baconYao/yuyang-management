@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import re
+from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -134,13 +136,22 @@ async def get_bill_pdf(bill_number: str, service: BillServiceDep):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="PDF generation failed",
         ) from e
-    filename = f"{bill_number}.pdf"
+    customer_name = (customer.customer_name or "客戶").strip()
+    safe_name = re.sub(r'[/\\:*?"<>|]', "_", customer_name) or "customer"
+    filename_utf8 = f"{bill_number}_{customer_name}.pdf"
+    fallback_ascii = f"{bill_number}_{safe_name}.pdf"
+    try:
+        fallback_ascii.encode("ascii")
+    except UnicodeEncodeError:
+        fallback_ascii = f"{bill_number}_customer.pdf"
+    content_disp = (
+        f'attachment; filename="{fallback_ascii}"; '
+        f"filename*=UTF-8''{quote(filename_utf8, safe='')}"
+    )
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
-        },
+        headers={"Content-Disposition": content_disp},
     )
 
 
