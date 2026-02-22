@@ -29,8 +29,5 @@ export function getContractStatusDisplay(
   if (status === "PENDING") {
     return { label: "合約待簽署", className: "bg-blue-200 text-blue-700" };
   }
-  if (status === "TRIAL") {
-    return { label: "試用", className: "bg-amber-100 text-amber-800" };
-  }
   return { label: status, className: "bg-blue-100 text-blue-800" };
 }

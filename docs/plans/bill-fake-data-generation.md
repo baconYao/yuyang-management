@@ -12,7 +12,7 @@
 
 ## Contract 對 Bill 的影響與產生條件
 
-- **僅對 status 為 ACTIVE 的合約產生 bill**；**PENDING、TRIAL、ENDED、TERMINATED 皆不產生**。
+- **僅對 status 為 ACTIVE 的合約產生 bill**；**PENDING、ENDED、TERMINATED 皆不產生**。
 - **第一筆 bill 的計費起始日 = 合約起始日**（`contract.start_date`）。
 - **後續 bills** 依合約的 **billing_interval** 遞推計費日：`start_date`、`start_date + 1*interval`、`start_date + 2*interval`、…（直到合約結束或取滿 N 筆為止）。
 - 下列 **contract 欄位會影響 bill**：
@@ -69,7 +69,7 @@
 
 ### 4. 僅對 ACTIVE 合約產生 Bill，計費日依 start_date + billing_interval
 
-- **篩選合約**：只處理 `contract.status == ContractStatus.ACTIVE`；**跳過 PENDING、TRIAL、ENDED、TERMINATED**。
+- **篩選合約**：只處理 `contract.status == ContractStatus.ACTIVE`；**跳過 PENDING、ENDED、TERMINATED**。
 - 對每個 ACTIVE `contract`：
   - **計費日序列**：第一筆計費日 = `contract.start_date`；之後為 `start_date + 1*interval_months`、`start_date + 2*interval_months`、…（`interval_months = int(contract.billing_interval.value)`）。可設上限筆數（例如 2～6 筆）或依 `contract.end_date` 截斷。
   - 依時間順序，對每個計費日呼叫 `generate_bill(contract, prev_bill_number, billing_date, used_bill_numbers)`；第一筆 `prev_bill_number=None`，之後為上一筆的 `bill_number`。

@@ -5,7 +5,6 @@ import type { Customer } from '../types';
 
 const CONTRACT_STATUS_OPTIONS = [
   { value: 'PENDING', label: '待簽署' },
-  { value: 'TRIAL', label: '試用' },
   { value: 'ACTIVE', label: '生效' }
 ];
 

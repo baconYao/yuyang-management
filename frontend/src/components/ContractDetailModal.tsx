@@ -33,7 +33,6 @@ const CONTRACT_STATUS_OPTIONS = [
   { value: 'ACTIVE', label: '生效' },
   { value: 'TERMINATED', label: '終止' },
   { value: 'PENDING', label: '待簽署' },
-  { value: 'TRIAL', label: '試用' },
   { value: 'ENDED', label: '結束' },
 ];
 

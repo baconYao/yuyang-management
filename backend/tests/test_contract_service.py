@@ -806,13 +806,13 @@ async def test_update_contract_partial_update(
 
     # Update only status
     update_data = ContractUpdate(
-        status=ContractStatus.TRIAL,
+        status=ContractStatus.PENDING,
     )
 
     result = await contract_service.update(contract_id, update_data)
 
     # Verify only status was updated
-    assert result.status == ContractStatus.TRIAL
+    assert result.status == ContractStatus.PENDING
     assert result.billing_interval == original_billing_interval
     assert result.payment_method == original_payment_method
     assert result.notes == "Original Notes"
