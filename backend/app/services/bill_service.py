@@ -212,6 +212,7 @@ class BillService:
         """
         Build and add the first bill for a contract (e.g. when status becomes ACTIVE). # noqa: E501
         Does not commit; caller must commit to keep same transaction.
+        First bill's created_at/updated_at = contract start_date (帳單起始日期).
         """
         interval_months = int(db_contract.billing_interval.value)
         monthly_rent = float(db_contract.monthly_rent)
@@ -230,6 +231,10 @@ class BillService:
                 "sort_order": 0,
             }
         ]
+        # 第一筆帳單的起始日期 = 合約起始日（前端顯示為 created_at）
+        start_dt = db_contract.start_date
+        if getattr(start_dt, "tzinfo", None) is not None:
+            start_dt = start_dt.astimezone(UTC).replace(tzinfo=None)
         db_bill = Bill(
             bill_number=_generate_bill_number(),
             customer_id=db_contract.customer_id,
@@ -242,6 +247,8 @@ class BillService:
             notes="",
             previous_bill_number=None,
             items=items_json,
+            created_at=start_dt,
+            updated_at=start_dt,
         )
         self._session.add(db_bill)
 
