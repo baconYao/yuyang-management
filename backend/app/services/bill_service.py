@@ -14,6 +14,7 @@ from app.api.schemas.bill import (
     BillUpdate,
     BillWrite,
 )
+from app.api.schemas.contract import InvoiceType
 from app.database.models.bill import Bill
 from app.database.models.contract import Contract
 from app.database.models.customer import Customer
@@ -94,7 +95,7 @@ class BillService:
             bill_number: The bill number (primary key) of the bill to retrieve
 
         Returns:
-            (BillRead, Customer) if both found, None if bill or customer missing
+            (BillRead, Customer) if both found, None if bill or customer missing # noqa: E501
         """
         bill_read = await self.get_by_bill_number(bill_number)
         if bill_read is None:
@@ -190,10 +191,59 @@ class BillService:
             notes=bill.notes or "",
             previous_bill_number=previous_bill_number,
         )
+        if bill.items:
+            items_json = [
+                {
+                    "product_name": item.product_name or "",
+                    "quantity": float(item.quantity),
+                    "unit_price": float(item.unit_price),
+                    "amount": float(item.amount),
+                    "sort_order": getattr(item, "sort_order", i),
+                }
+                for i, item in enumerate(bill.items)
+            ]
+            db_bill.items = items_json
         self._session.add(db_bill)
         await self._session.commit()
         await self._session.refresh(db_bill)
         return self._bill_to_read(db_bill)
+
+    def create_first_bill_for_contract(self, db_contract: Contract) -> None:
+        """
+        Build and add the first bill for a contract (e.g. when status becomes ACTIVE). # noqa: E501
+        Does not commit; caller must commit to keep same transaction.
+        """
+        interval_months = int(db_contract.billing_interval.value)
+        monthly_rent = float(db_contract.monthly_rent)
+        amount = monthly_rent * interval_months
+        invoice_type = (
+            db_contract.invoice_type
+            if db_contract.invoice_type is not None
+            else InvoiceType.NO_INVOICE
+        )
+        items_json = [
+            {
+                "product_name": db_contract.product_name or "",
+                "quantity": float(interval_months),
+                "unit_price": monthly_rent,
+                "amount": amount,
+                "sort_order": 0,
+            }
+        ]
+        db_bill = Bill(
+            bill_number=_generate_bill_number(),
+            customer_id=db_contract.customer_id,
+            contract_id=db_contract.id,
+            amount=amount,
+            tax_amount=0.0,
+            monthly_rent=monthly_rent,
+            invoice_type=invoice_type,
+            status=BillStatus.DRAFT,
+            notes="",
+            previous_bill_number=None,
+            items=items_json,
+        )
+        self._session.add(db_bill)
 
     async def update(self, bill_number: str, bill_update: BillUpdate) -> BillRead:  # noqa: E501
         """

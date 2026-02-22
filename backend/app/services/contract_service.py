@@ -1,7 +1,8 @@
+import calendar
 import logging
 import random
 import string
-from datetime import date
+from datetime import UTC, date, datetime
 from uuid import UUID
 
 from sqlalchemy import delete
@@ -10,11 +11,13 @@ from sqlmodel import select
 
 from app.api.schemas.contract import (
     ContractRead,
+    ContractStatus,
     ContractUpdate,
     ContractWrite,
 )
 from app.database.models.contract import Contract
 from app.database.models.customer import Customer
+from app.services.bill_service import BillService
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +27,43 @@ def _generate_contract_number() -> str:
     today = date.today()
     suffix = "".join(random.choices(string.ascii_uppercase, k=5))
     return f"C-{today.year}-{today.month:02d}-{suffix}"
+
+
+# DB uses TIMESTAMP WITHOUT TIME ZONE; normalize datetimes to naive UTC for storage. # noqa: E501
+_CONTRACT_TIMESTAMP_FIELDS = frozenset(
+    {"signed_date", "next_billing_date", "terminated_at"}
+)
+
+
+def _to_naive_utc(dt: datetime) -> datetime:
+    """Return naive datetime for DB (UTC instant); no-op if already naive."""
+    if getattr(dt, "tzinfo", None) is None:
+        return dt
+    return dt.astimezone(UTC).replace(tzinfo=None)
+
+
+def _add_months(dt: datetime, months: int) -> datetime:
+    """Return naive datetime equal to dt + months (handles month overflow, day clamp)."""  # noqa: E501
+    dt = _to_naive_utc(dt)
+    year, month, day = dt.year, dt.month, dt.day
+    month += months
+    while month > 12:
+        month -= 12
+        year += 1
+    while month < 1:
+        month += 12
+        year -= 1
+    last_day = calendar.monthrange(year, month)[1]
+    day = min(day, last_day)
+    return datetime(
+        year,
+        month,
+        day,
+        dt.hour,
+        dt.minute,
+        dt.second,
+        dt.microsecond,
+    )
 
 
 class ContractService:
@@ -191,8 +231,28 @@ class ContractService:
 
         # Update only provided fields
         update_data = contract_update.model_dump(exclude_unset=True)
+
+        # When transitioning PENDING -> ACTIVE: create first bill and set next_billing_date # noqa: E501
+        creating_first_bill = False
+        if "status" in update_data and update_data["status"] == ContractStatus.ACTIVE:  # noqa: E501
+            if db_contract.status in (ContractStatus.PENDING):
+                creating_first_bill = True
+                if "next_billing_date" not in update_data:
+                    n = int(db_contract.billing_interval.value)
+                    update_data["next_billing_date"] = _add_months(
+                        db_contract.start_date, n
+                    )
+
+        # Normalize datetime fields to naive UTC so DB (TIMESTAMP WITHOUT TIME ZONE) accepts them # noqa: E501
+        for key in _CONTRACT_TIMESTAMP_FIELDS:
+            if key in update_data and isinstance(update_data[key], datetime):
+                update_data[key] = _to_naive_utc(update_data[key])
+
         for field, value in update_data.items():
             setattr(db_contract, field, value)
+
+        if creating_first_bill:
+            BillService(self._session).create_first_bill_for_contract(db_contract)  # noqa: E501
 
         # Commit the changes
         await self._session.commit()
