@@ -117,8 +117,6 @@ export default function BillDetailModal({
   const [editForm, setEditForm] = useState({
     status: 'DRAFT' as BillStatus,
     notes: '',
-    tax_amount: '',
-    monthly_rent: '',
     invoice_type: '',
     due_date: '',
     sent_at: '',
@@ -154,8 +152,6 @@ export default function BillDetailModal({
     setEditForm({
       status: bill.status,
       notes: bill.notes ?? '',
-      tax_amount: bill.tax_amount.toString(),
-      monthly_rent: bill.monthly_rent.toString(),
       invoice_type: bill.invoice_type ?? '',
       due_date: toDateInputValue(bill.due_date).slice(0, 10),
       sent_at: toDateInputValue(bill.sent_at).slice(0, 10),
@@ -184,8 +180,6 @@ export default function BillDetailModal({
       const payload = {
         status: editForm.status,
         notes: editForm.notes || null,
-        tax_amount: editForm.tax_amount ? parseFloat(editForm.tax_amount) : null,
-        monthly_rent: editForm.monthly_rent ? parseFloat(editForm.monthly_rent) : null,
         invoice_type: editForm.invoice_type || null,
         due_date: editForm.due_date ? `${editForm.due_date}T00:00:00.000Z` : null,
         sent_at: editForm.sent_at ? `${editForm.sent_at}T00:00:00.000Z` : null,
@@ -212,8 +206,6 @@ export default function BillDetailModal({
     setEditForm({
       status: bill.status,
       notes: bill.notes ?? '',
-      tax_amount: bill.tax_amount.toString(),
-      monthly_rent: bill.monthly_rent.toString(),
       invoice_type: bill.invoice_type ?? '',
       due_date: toDateInputValue(bill.due_date).slice(0, 10),
       sent_at: toDateInputValue(bill.sent_at).slice(0, 10),
@@ -352,28 +344,6 @@ export default function BillDetailModal({
                   value={editForm.notes}
                   onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">月租金額</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={editForm.monthly_rent}
-                  onChange={(e) => setEditForm((f) => ({ ...f, monthly_rent: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">稅額</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={editForm.tax_amount}
-                  onChange={(e) => setEditForm((f) => ({ ...f, tax_amount: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
