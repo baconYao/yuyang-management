@@ -1,10 +1,19 @@
+import asyncio
+import logging
+import re
+from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
+from fastapi.responses import Response
 
 from app.api.dependencies import BillServiceDep
 from app.api.schemas.bill import BillRead, BillStatus, BillUpdate, BillWrite
+from app.api.schemas.contract import InvoiceType
+from app.pdf import generate_pdf_bytes
 from app.services.bill_service import InvalidStatusTransitionError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/bills", tags=["Bills"])
 
@@ -62,6 +71,87 @@ async def get_bills(
         customer_id=customer_id,
         contract_id=contract_id,
         statuses=status,
+    )
+
+
+def _invoice_type_to_str(invoice_type: InvoiceType) -> str:
+    if invoice_type == InvoiceType.TRIPLE_UNIFORM_INVOICE:
+        return "三聯"
+    if invoice_type == InvoiceType.DUPLICATE_UNIFORM_INVOICE:
+        return "二聯"
+    return "無發票"
+
+
+@router.get("/{bill_number}/pdf")
+async def get_bill_pdf(bill_number: str, service: BillServiceDep):
+    """
+    Download bill as PDF (請款單).
+
+    Returns:
+        application/pdf with Content-Disposition attachment.
+    """
+    pair = await service.get_bill_with_customer(bill_number)
+    if pair is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Bill or customer not found for bill_number {bill_number!r}",  # noqa: E501
+        )
+    bill, customer = pair
+    due_or_created = bill.due_date or bill.created_at
+    invoice_issue_date = ""
+    if due_or_created:
+        dt = due_or_created
+        if hasattr(dt, "strftime"):
+            invoice_issue_date = dt.strftime("%Y-%m-%d")
+        else:
+            invoice_issue_date = str(dt)[:10]
+
+    invoice_data = {
+        "bill_number": bill_number,
+        "customer_name": customer.customer_name or "",
+        "invoice_title": customer.invoice_title or "",
+        "contact_person": customer.primary_contact or "",
+        "phone": customer.contact_phone or "",
+        "tax_id": customer.invoice_number or "",
+        "invoice_number": customer.invoice_number or "",
+        "invoice_type": _invoice_type_to_str(bill.invoice_type),
+        "notes": bill.notes or "",
+        "invoice_issue_date": invoice_issue_date,
+        "address": customer.address or "",
+        "items": [
+            {
+                "name": item.product_name or "",
+                "quantity": item.quantity,
+                "unit_price": item.unit_price,
+                "amount": item.amount,
+            }
+            for item in bill.items
+        ],
+    }
+    try:
+        pdf_bytes = await asyncio.to_thread(generate_pdf_bytes, invoice_data)
+    except Exception as e:
+        logger.exception("Bill PDF generation failed for %s", bill_number)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="PDF generation failed",
+        ) from e
+    customer_name = (customer.customer_name or "客戶").strip()
+    safe_name = re.sub(r'[/\\:*?"<>|]', "_", customer_name) or "customer"
+    filename_utf8 = f"{bill_number}_{customer_name}.pdf"
+    fallback_ascii = f"{bill_number}_{safe_name}.pdf"
+    try:
+        fallback_ascii.encode("ascii")
+    except UnicodeEncodeError:
+        fallback_ascii = f"{bill_number}_customer.pdf"
+    content_disp = (
+        f'attachment; filename="{fallback_ascii}"; '
+        f"filename*=UTF-8''{quote(filename_utf8, safe='')}"
+    )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": content_disp},
     )
 
 

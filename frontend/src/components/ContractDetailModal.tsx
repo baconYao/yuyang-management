@@ -29,11 +29,34 @@ function toDateInputValue(iso: string | null | undefined): string {
   }
 }
 
+/** 起始日 + 帳單週期月數，回傳 YYYY-MM-DD；若日超過當月最後一天則取該月最後一天。 */
+function addMonthsToDate(iso: string | null | undefined, months: number): string {
+  if (!iso || !Number.isInteger(months) || months < 0) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  let newM = m + months;
+  let newY = y;
+  while (newM > 12) {
+    newM -= 12;
+    newY += 1;
+  }
+  while (newM < 1) {
+    newM += 12;
+    newY -= 1;
+  }
+  const lastDay = new Date(newY, newM, 0).getDate();
+  const newDay = Math.min(day, lastDay);
+  const result = new Date(newY, newM - 1, newDay);
+  return result.toISOString().slice(0, 10);
+}
+
 const CONTRACT_STATUS_OPTIONS = [
   { value: 'ACTIVE', label: '生效' },
   { value: 'TERMINATED', label: '終止' },
   { value: 'PENDING', label: '待簽署' },
-  { value: 'TRIAL', label: '試用' },
   { value: 'ENDED', label: '結束' },
 ];
 
@@ -320,7 +343,28 @@ export default function ContractDetailModal({
                     </label>
                     <select
                       value={editForm.status}
-                      onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}
+                      onChange={(e) => {
+                        const nextStatus = e.target.value;
+                        setEditForm((f) => {
+                          const isSwitchingToActive = nextStatus === 'ACTIVE';
+                          const intervalMonths = parseInt(
+                            f.billing_interval || contract.billing_interval || '1',
+                            10
+                          );
+                          const shouldAutoNextBilling =
+                            isSwitchingToActive &&
+                            !f.next_billing_date &&
+                            intervalMonths >= 1;
+                          const next_billing_date = shouldAutoNextBilling
+                            ? addMonthsToDate(contract.start_date, intervalMonths)
+                            : f.next_billing_date;
+                          return {
+                            ...f,
+                            status: nextStatus,
+                            ...(shouldAutoNextBilling ? { next_billing_date } : {}),
+                          };
+                        });
+                      }}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       {CONTRACT_STATUS_OPTIONS.map((opt) => (
@@ -389,9 +433,22 @@ export default function ContractDetailModal({
                     </label>
                     <select
                       value={editForm.billing_interval}
-                      onChange={(e) =>
-                        setEditForm((f) => ({ ...f, billing_interval: e.target.value }))
-                      }
+                      onChange={(e) => {
+                        const nextInterval = e.target.value;
+                        setEditForm((f) => {
+                          const next = { ...f, billing_interval: nextInterval };
+                          if (f.status === 'ACTIVE' && nextInterval) {
+                            const months = parseInt(nextInterval, 10);
+                            if (months >= 1) {
+                              next.next_billing_date = addMonthsToDate(
+                                contract.start_date,
+                                months
+                              );
+                            }
+                          }
+                          return next;
+                        });
+                      }}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">請選擇</option>

@@ -174,6 +174,10 @@ class BillWrite(BaseModel):
         max_length=NOTES_MAX_LENGTH,
         description="Notes (plain text, max 200 characters)",
     )
+    items: list[BillItemWrite] | None = Field(
+        None,
+        description="Optional line items; if omitted, bill has no items.",
+    )
 
 
 class BillUpdate(BaseModel):

@@ -13,7 +13,6 @@ class ContractStatus(StrEnum):
     ACTIVE = "ACTIVE"  # 生效
     TERMINATED = "TERMINATED"  # 終止 (提前結束)
     PENDING = "PENDING"  # 待簽署
-    TRIAL = "TRIAL"  # 試用
     ENDED = "ENDED"  # 結束 (正常結束)
 
 

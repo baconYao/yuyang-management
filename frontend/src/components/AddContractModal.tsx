@@ -3,12 +3,6 @@ import { contractApi } from '../services/api';
 import type { Contract, ContractWithCustomer } from '../types';
 import type { Customer } from '../types';
 
-const CONTRACT_STATUS_OPTIONS = [
-  { value: 'PENDING', label: '待簽署' },
-  { value: 'TRIAL', label: '試用' },
-  { value: 'ACTIVE', label: '生效' }
-];
-
 const BILLING_INTERVAL_OPTIONS = [
   { value: '1', label: '1 個月' },
   { value: '2', label: '2 個月' },
@@ -114,7 +108,6 @@ export default function AddContractModal({
     setFieldErrors((prev) => {
       const next = { ...prev };
       delete next[field];
-      if (field === 'status' && value !== 'ACTIVE') delete next.next_billing_date;
       return next;
     });
   }, []);
@@ -166,9 +159,6 @@ export default function AddContractModal({
       if (!form.invoice_type) {
         errors.invoice_type = '請選擇發票類型';
       }
-      if (form.status === 'ACTIVE' && !form.next_billing_date) {
-        errors.next_billing_date = '請選擇下次帳單日';
-      }
 
       if (Object.keys(errors).length > 0) {
         setFieldErrors(errors);
@@ -187,11 +177,8 @@ export default function AddContractModal({
           end_date: `${form.end_date}T00:00:00`,
           monthly_rent: monthlyRent,
           billing_interval: form.billing_interval,
-          status: form.status,
-          next_billing_date:
-            form.status === 'ACTIVE' && form.next_billing_date
-              ? `${form.next_billing_date}T00:00:00`
-              : null,
+          status: 'PENDING',
+          next_billing_date: null,
           notes: form.notes.trim() || null,
           payment_method: form.payment_method || null,
           invoice_type: form.invoice_type || null,
@@ -412,42 +399,12 @@ export default function AddContractModal({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  合約狀態 <span className="text-red-500">*</span>
+                  合約狀態
                 </label>
-                <select
-                  value={form.status}
-                  onChange={(e) => update('status', e.target.value as Contract['status'])}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {CONTRACT_STATUS_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {form.status === 'ACTIVE' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    下次帳單日 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={form.next_billing_date}
-                    onChange={(e) => update('next_billing_date', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      fieldErrors.next_billing_date
-                        ? 'border-red-500 focus:ring-red-500'
-                        : 'border-gray-300'
-                    }`}
-                  />
-                  {fieldErrors.next_billing_date && (
-                    <p className="mt-1 text-sm text-red-600">
-                      {fieldErrors.next_billing_date}
-                    </p>
-                  )}
+                <div className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
+                  待簽署
                 </div>
-              )}
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   付款方式

@@ -69,7 +69,9 @@ class HTMLPDFGenerator:
         """取得當前日期（yyyy-mm-dd 格式）"""
         return datetime.now().strftime("%Y-%m-%d")
 
-    def calculate_totals(self, items: List[Dict[str, Any]], invoice_type: str = "") -> Dict[str, float]:
+    def calculate_totals(
+        self, items: List[Dict[str, Any]], invoice_type: str = ""
+    ) -> Dict[str, float]:
         """
         計算總金額
 
@@ -116,12 +118,12 @@ class HTMLPDFGenerator:
             # 處理數量（可能包含單位，如 "2 包"）
             qty_str = str(quantity).strip()
             # 提取數字部分
-            qty_num = float(''.join(filter(lambda x: x.isdigit() or x == '.', qty_str)))
-            
+            qty_num = float("".join(filter(lambda x: x.isdigit() or x == ".", qty_str)))
+
             # 處理單價
             price_str = str(unit_price).strip()
             price_num = float(price_str)
-            
+
             return qty_num * price_num
         except (ValueError, TypeError):
             return 0.0
@@ -140,22 +142,24 @@ class HTMLPDFGenerator:
         processed_items = []
         for item in invoice_data.get("items", []):
             processed_item = item.copy()
-            
+
             # 如果金額為空，自動計算
             if not processed_item.get("amount") or processed_item.get("amount") == "":
                 calculated_amount = self.calculate_item_amount(
                     processed_item.get("quantity", ""),
-                    processed_item.get("unit_price", "")
+                    processed_item.get("unit_price", ""),
                 )
-                processed_item["amount"] = str(int(calculated_amount)) if calculated_amount > 0 else ""
-            
+                processed_item["amount"] = (
+                    str(int(calculated_amount)) if calculated_amount > 0 else ""
+                )
+
             # 顯示用數量：將「數字月」改為「數字個月」
             qty_display = str(processed_item.get("quantity", ""))
             m = re.fullmatch(r"\s*(\d+)\s*月\s*", qty_display)
             if m:
                 qty_display = f"{m.group(1)}個月"
             processed_item["display_quantity"] = qty_display
-            
+
             processed_items.append(processed_item)
 
         # 計算總金額（傳遞發票種類）
@@ -164,7 +168,9 @@ class HTMLPDFGenerator:
 
         # 處理日期欄位
         invoice_date = self.get_current_date()  # 請款日期（系統生成）
-        invoice_issue_date = invoice_data.get("invoice_issue_date", "")  # 發票日期（從資料取得）
+        invoice_issue_date = invoice_data.get(
+            "invoice_issue_date", ""
+        )  # 發票日期（從資料取得）
 
         # 準備完整的請款單資料
         prepared_data = {
@@ -236,16 +242,14 @@ class HTMLPDFGenerator:
             if os.path.exists(css_path):
                 css_doc = CSS(filename=css_path, font_config=self.font_config)
                 html_doc.write_pdf(
-                    output_path, 
-                    stylesheets=[css_doc], 
+                    output_path,
+                    stylesheets=[css_doc],
                     font_config=self.font_config,
-                    optimize_images=True
+                    optimize_images=True,
                 )
             else:
                 html_doc.write_pdf(
-                    output_path, 
-                    font_config=self.font_config,
-                    optimize_images=True
+                    output_path, font_config=self.font_config, optimize_images=True
                 )
 
             print(f"✓ PDF 已生成：{output_path}")
