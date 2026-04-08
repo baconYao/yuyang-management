@@ -66,6 +66,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Debug frontend build context
+        run: |
+          echo "GITHUB_REF=${GITHUB_REF}"
+          echo "GITHUB_SHA=${GITHUB_SHA}"
+          echo "=== workspace ==="
+          ls -la
+          echo "=== frontend dir ==="
+          ls -la ./frontend
+          echo "=== required files ==="
+          test -f ./frontend/package.json && echo "OK: frontend/package.json" || (echo "MISSING: frontend/package.json" && exit 1)
+          test -f ./frontend/package-lock.json && echo "OK: frontend/package-lock.json" || (echo "MISSING: frontend/package-lock.json" && exit 1)
+
       - name: Set lowercase repository name
         run: |
           echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> "${GITHUB_ENV}"
