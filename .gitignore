@@ -266,3 +266,7 @@ Thumbs.db
 # csv files
 *.csv
 *.json
+
+# Frontend needs npm lockfiles tracked
+!frontend/package.json
+!frontend/package-lock.json
