@@ -270,3 +270,5 @@ Thumbs.db
 # Frontend needs npm lockfiles tracked
 !frontend/package.json
 !frontend/package-lock.json
+!frontend/tsconfig.json
+!frontend/tsconfig.node.json
