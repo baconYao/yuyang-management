@@ -28,7 +28,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
@@ -37,9 +37,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv venv
-          uv pip install -e .
-          uv pip install -e ".[dev]"
+          uv sync --frozen --all-extras
+
+      - name: Show tool versions
+        run: |
+          uv --version
+          uv run python -V
+          uv run ruff --version
 
       - name: Run Ruff linting
         run: |
@@ -60,5 +64,5 @@ jobs:
           echo "✅ Backend tests completed successfully" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Workflow:** Backend Tests" >> $GITHUB_STEP_SUMMARY
-          echo "**Python Version:** 3.11" >> $GITHUB_STEP_SUMMARY
+          echo "**Python Version:** 3.12" >> $GITHUB_STEP_SUMMARY
           echo "**Package Manager:** uv" >> $GITHUB_STEP_SUMMARY
