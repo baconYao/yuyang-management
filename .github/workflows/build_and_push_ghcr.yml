@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - "stage*"
     tags:
       - "v*"
 
@@ -29,6 +30,16 @@ jobs:
         run: |
           echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> "${GITHUB_ENV}"
 
+      - name: Docker meta (backend)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.REPO_LC }}/backend
+          tags: |
+            type=sha,format=long,prefix=sha-
+            type=ref,event=branch
+            type=ref,event=tag
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -45,8 +56,8 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.REPO_LC }}/backend:sha-${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
   build-frontend:
     name: Build & Push Frontend
@@ -58,6 +69,16 @@ jobs:
       - name: Set lowercase repository name
         run: |
           echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> "${GITHUB_ENV}"
+
+      - name: Docker meta (frontend)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.REPO_LC }}/frontend
+          tags: |
+            type=sha,format=long,prefix=sha-
+            type=ref,event=branch
+            type=ref,event=tag
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -75,6 +96,6 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.REPO_LC }}/frontend:sha-${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
