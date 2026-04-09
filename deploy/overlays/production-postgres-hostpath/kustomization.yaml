@@ -1,0 +1,17 @@
+# Extends `production` but stores PostgreSQL on a hostPath inside the k3s node.
+# Use when the node (or node container) bind-mounts a host directory or Docker volume
+# at a known path (see deploy/README.md).
+#
+# Edit postgres-hostpath.patch.yaml if your mount path on the node differs.
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../production
+
+patches:
+  - path: postgres-hostpath.patch.yaml
+    target:
+      kind: StatefulSet
+      name: postgres

@@ -1,13 +1,13 @@
 # Kubernetes / k3s deployment (Yuyang Management)
 
-This directory contains **Kustomize** bases and a **qnap** overlay for running PostgreSQL, Backend, and Frontend on k3s.
+This directory contains **Kustomize** bases and **overlays** for running PostgreSQL, Backend, and Frontend on Kubernetes / k3s.
 
 ## 1. Verify the cluster (before deploying apps)
 
 Run these with your kubeconfig (replace path as needed):
 
 ```bash
-export KUBECONFIG=~/.kube/qnap-k3s.yaml   # example
+export KUBECONFIG=~/.kube/config   # or path to your cluster kubeconfig
 
 kubectl get nodes
 # Expect: at least one node in Ready state
@@ -62,12 +62,35 @@ Default manifests use user `postgres`, database `yuyang_db` (same as [docker-com
 
 1. Complete **section 1** (cluster + StorageClass).
 2. Create **section 2** secrets (`ghcr-pull`, `postgres-secret`).
-3. Set image tags in [overlays/qnap/kustomization.yaml](overlays/qnap/kustomization.yaml) (`images[].newTag` to your GHCR tag, e.g. `sha-...` or `main`).
-4. Apply the overlay:
+3. Set image tags in [overlays/production/kustomization.yaml](overlays/production/kustomization.yaml) (`images[].newTag` to your GHCR tag, e.g. `sha-...` or `main`).
+4. Apply the default production overlay (Postgres uses **dynamic PVC** + `local-path` StorageClass):
 
 ```bash
-kubectl apply -k deploy/overlays/qnap
+kubectl apply -k deploy/overlays/production
 ```
+
+### PostgreSQL on bind-mounted storage (hostPath)
+
+Example: **QNAP Container Station** Docker volume `yuyang-management` (host path like `.../volumes/yuyang-management/_data`).
+
+The durable path on the **physical host** is not the same as paths **inside** the Kubernetes node (e.g. k3s running in a container). You cannot put the NAS absolute path into a Pod spec; the node must expose storage at a path the kubelet sees.
+
+1. **Bind-mount** your volume into the **node** at a stable path (example on QNAP Container Station: Docker volume `yuyang-management` → mount inside the k3s container as **`/mnt/yuyang-management`**). The same idea applies on a bare-metal node: mount disk at e.g. `/var/lib/yuyang/postgres`.
+
+2. **Deploy with the hostPath overlay** so Postgres does not use a `local-path` PVC:
+
+```bash
+kubectl apply -k deploy/overlays/production-postgres-hostpath
+```
+
+This extends [overlays/production](overlays/production) and patches the `postgres` StatefulSet to use:
+
+`hostPath.path: /mnt/yuyang-management/postgres` (default).
+
+If your mount point differs, edit  
+[overlays/production-postgres-hostpath/postgres-hostpath.patch.yaml](overlays/production-postgres-hostpath/postgres-hostpath.patch.yaml), then re-apply.
+
+**If you already deployed Postgres with `production`** (`local-path` PVC), switching to hostPath is a **storage migration**: back up data, remove the old StatefulSet/PVC (or use a new cluster), then apply `production-postgres-hostpath` on a clean directory.
 
 5. Wait for workloads:
 
@@ -87,5 +110,5 @@ The API runs `create_db_tables()` on startup ([backend/app/main.py](../backend/a
 ## 5. Troubleshooting
 
 - **ImagePullBackOff**: Check `ghcr-pull` secret and image name/tag (lowercase `ghcr.io/baconyao/...`).
-- **Postgres pending**: Check PVC + `local-path`; ensure k3s data paths are persisted on the NAS if using Container Station.
+- **Postgres pending**: With [overlays/production](overlays/production), check PVC + `local-path`. With [overlays/production-postgres-hostpath](overlays/production-postgres-hostpath), there is no PVC; ensure the node has the directory bind-mounted and `hostPath` matches the patch file.
 - **Backend CrashLoop**: Check `kubectl -n yuyang logs deploy/api` and DB connectivity (`POSTGRES_SERVER=postgres`).
