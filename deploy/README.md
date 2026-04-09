@@ -77,22 +77,25 @@ The durable path on the **physical host** is not the same as paths **inside** th
 
 1. **Bind-mount** your volume into the **node** at a stable path (example on QNAP Container Station: Docker volume `yuyang-management` → mount inside the k3s container as **`/mnt/yuyang-management`**). The same idea applies on a bare-metal node: mount disk at e.g. `/var/lib/yuyang/postgres`.
 
-2. **Deploy with the hostPath overlay** so Postgres does not use a `local-path` PVC:
+2. **Enable the optional Kustomize component** so Postgres uses `hostPath` instead of a `local-path` PVC:
+
+   - Edit [components/postgres-hostpath/postgres-hostpath.patch.yaml](components/postgres-hostpath/postgres-hostpath.patch.yaml) if your node mount path is not `/mnt/yuyang-management/postgres`.
+   - In [overlays/production/kustomization.yaml](overlays/production/kustomization.yaml), uncomment:
+
+   ```yaml
+   components:
+     - ../../components/postgres-hostpath
+   ```
+
+3. Apply the same overlay as usual:
 
 ```bash
-kubectl apply -k deploy/overlays/production-postgres-hostpath
+kubectl apply -k deploy/overlays/production
 ```
 
-This extends [overlays/production](overlays/production) and patches the `postgres` StatefulSet to use:
+**If you already deployed Postgres without the component** (`local-path` PVC), turning the component on is a **storage migration**: back up data, remove the old StatefulSet/PVC (or use a new cluster), then apply on a clean hostPath directory.
 
-`hostPath.path: /mnt/yuyang-management/postgres` (default).
-
-If your mount point differs, edit  
-[overlays/production-postgres-hostpath/postgres-hostpath.patch.yaml](overlays/production-postgres-hostpath/postgres-hostpath.patch.yaml), then re-apply.
-
-**If you already deployed Postgres with `production`** (`local-path` PVC), switching to hostPath is a **storage migration**: back up data, remove the old StatefulSet/PVC (or use a new cluster), then apply `production-postgres-hostpath` on a clean directory.
-
-5. Wait for workloads:
+**After apply (PVC or hostPath):** wait for workloads and open the UI:
 
 ```bash
 kubectl -n yuyang get pods,svc,pvc
@@ -100,8 +103,7 @@ kubectl -n yuyang logs deploy/api --tail=100
 kubectl -n yuyang logs deploy/frontend --tail=50
 ```
 
-6. Open the UI: use the **NodePort** printed for service `frontend` (default node port **30080** if not changed), e.g. `http://<node-ip>:30080`.  
-   The frontend nginx image proxies `/api` to the backend Service named **`api`** (port 8000), matching [frontend/nginx.conf](../frontend/nginx.conf).
+Use the **NodePort** for service `frontend` (default **30080**), e.g. `http://<node-ip>:30080`. The frontend nginx image proxies `/api` to the backend Service **`api`** (port 8000), matching [frontend/nginx.conf](../frontend/nginx.conf).
 
 ## 4. Migrations
 
@@ -110,5 +112,5 @@ The API runs `create_db_tables()` on startup ([backend/app/main.py](../backend/a
 ## 5. Troubleshooting
 
 - **ImagePullBackOff**: Check `ghcr-pull` secret and image name/tag (lowercase `ghcr.io/baconyao/...`).
-- **Postgres pending**: With [overlays/production](overlays/production), check PVC + `local-path`. With [overlays/production-postgres-hostpath](overlays/production-postgres-hostpath), there is no PVC; ensure the node has the directory bind-mounted and `hostPath` matches the patch file.
+- **Postgres pending**: Without the hostPath component, check PVC + `local-path`. With [components/postgres-hostpath](components/postgres-hostpath) enabled in [overlays/production/kustomization.yaml](overlays/production/kustomization.yaml), there is no PVC; ensure the node has the directory bind-mounted and `hostPath` matches the patch file.
 - **Backend CrashLoop**: Check `kubectl -n yuyang logs deploy/api` and DB connectivity (`POSTGRES_SERVER=postgres`).

@@ -1,0 +1,10 @@
+# Optional component: replace Postgres PVC with hostPath on the node.
+# Include from overlays/production via `components:` (see that file and deploy/README.md).
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+patches:
+  - path: postgres-hostpath.patch.yaml
+    target:
+      kind: StatefulSet
+      name: postgres

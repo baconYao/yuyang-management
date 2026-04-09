@@ -6,6 +6,11 @@ namespace: yuyang
 resources:
   - ../../base
 
+# Optional: Postgres on a bind-mounted host path (no local-path PVC).
+# Uncomment both lines after editing deploy/components/postgres-hostpath/postgres-hostpath.patch.yaml
+# components:
+#   - ../../components/postgres-hostpath
+
 # Set to your published GHCR tags (e.g. sha-<full_git_sha> or main / stage branch name).
 images:
   - name: backend
