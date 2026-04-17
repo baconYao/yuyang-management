@@ -103,7 +103,7 @@ kubectl -n yuyang logs deploy/api --tail=100
 kubectl -n yuyang logs deploy/frontend --tail=50
 ```
 
-Use the **NodePort** for service `frontend` (default **30080**), e.g. `http://<node-ip>:30080`. The frontend nginx image proxies `/api` to the backend Service **`api`** (port 8000), matching [frontend/nginx.conf](../frontend/nginx.conf).
+The `frontend` Service is **NodePort** with fixed **`nodePort: 61080`** (fits NodePort ranges such as 61000–62000). Open `http://<node-ip>:61080`. If your cluster uses another range, change [base/frontend/service.yaml](base/frontend/service.yaml). The frontend nginx image proxies `/api` to the backend Service **`api`** (port 8000), matching [frontend/nginx.conf](../frontend/nginx.conf).
 
 ## 4. Migrations
 

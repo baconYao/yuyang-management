@@ -9,7 +9,7 @@ spec:
   ports:
     - port: 80
       targetPort: http
-      nodePort: 30080
+      nodePort: 61080
       name: http
   selector:
     app: frontend
