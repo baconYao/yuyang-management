@@ -323,6 +323,18 @@ def generate_bill(
         }
         notes = payment_notes.get(contract.payment_method, "")
 
+    # Seed must include bill items; PDF generator relies on bill.items to render 品名等資訊。
+    # Keep items total consistent with base (pre-tax) amount.
+    items_json = [
+        {
+            "product_name": getattr(contract, "product_name", "") or "",
+            "quantity": float(interval_months),
+            "unit_price": float(contract.monthly_rent),
+            "amount": float(base),
+            "sort_order": 0,
+        }
+    ]
+
     return Bill(
         bill_number=bill_number,
         customer_id=contract.customer_id,
@@ -339,6 +351,7 @@ def generate_bill(
         due_date=due_date,
         sent_at=sent_at,
         paid_at=paid_at,
+        items=items_json,
     )
 
 

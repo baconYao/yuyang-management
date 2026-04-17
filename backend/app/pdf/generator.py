@@ -65,10 +65,17 @@ def _prepare_invoice_data(invoice_data: dict[str, Any]) -> dict[str, Any]:
                 processed.get("unit_price", ""),
             )
             processed["amount"] = str(int(calculated)) if calculated > 0 else ""  # noqa: E501
-        qty_display = str(processed.get("quantity", ""))
+        qty_raw = processed.get("quantity", "")
+        qty_display = str(qty_raw)
         m = re.fullmatch(r"\s*(\d+)\s*月\s*", qty_display)
         if m:
-            qty_display = f"{m.group(1)}個月"
+            qty_display = f"{int(m.group(1))}個月"
+        else:
+            # Force quantity to int for PDF display (no decimals).
+            try:
+                qty_display = str(int(float(str(qty_raw).strip())))
+            except (ValueError, TypeError):
+                qty_display = str(qty_raw)
         processed["display_quantity"] = qty_display
         # Format numbers as display strings for PDF (avoid rendering issues)
         try:
