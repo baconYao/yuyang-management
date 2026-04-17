@@ -341,7 +341,6 @@ def generate_bill(
         contract_id=contract.id,
         amount=amount,
         tax_amount=tax_amount,
-        monthly_rent=contract.monthly_rent,
         invoice_type=contract.invoice_type,
         status=status,
         notes=notes,

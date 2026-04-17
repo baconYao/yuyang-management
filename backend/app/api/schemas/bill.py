@@ -62,7 +62,6 @@ class Bill(BaseModel):
     contract_id: UUID = Field(..., description="Contract ID (foreign key)")
     amount: float = Field(..., gt=0, description="Total billing amount")
     tax_amount: float = Field(0, ge=0, description="Tax amount")
-    monthly_rent: float = Field(..., ge=0, description="Monthly rent")
     invoice_type: InvoiceType = Field(
         default=InvoiceType.NO_INVOICE,
         description="Invoice type (e.g. no invoice, duplicate/triple uniform invoice)",  # noqa: E501
@@ -163,7 +162,6 @@ class BillWrite(BaseModel):
     contract_id: UUID = Field(..., description="Contract ID (foreign key)")
     amount: float = Field(..., gt=0, description="Total billing amount")
     tax_amount: float = Field(0, ge=0, description="Tax amount")
-    monthly_rent: float = Field(..., ge=0, description="Monthly rent")
     invoice_type: InvoiceType = Field(
         default=InvoiceType.NO_INVOICE,
         description="Invoice type (e.g. no invoice, duplicate/triple uniform invoice)",  # noqa: E501
@@ -192,7 +190,6 @@ class BillUpdate(BaseModel):
         description="Notes (plain text, max 200 characters)",
     )
     tax_amount: float | None = Field(None, ge=0, description="Tax amount")
-    monthly_rent: float | None = Field(None, ge=0, description="Monthly rent")
     invoice_type: InvoiceType | None = Field(
         None,
         description="Invoice type (e.g. no invoice, duplicate/triple uniform invoice)",  # noqa: E501

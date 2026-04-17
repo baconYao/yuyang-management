@@ -45,10 +45,6 @@ class Bill(SQLModel, table=True):
         default=0.0,
         description="Tax amount",
     )
-    monthly_rent: float = Field(
-        sa_column=Column(postgresql.DOUBLE_PRECISION, nullable=False),
-        description="Monthly rent",
-    )
     invoice_type: InvoiceType = Field(
         sa_column=Column(
             postgresql.ENUM(

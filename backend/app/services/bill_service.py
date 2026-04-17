@@ -40,6 +40,33 @@ class BillService:
         """Initialize the service with database session"""
         self._session = session
 
+    def _calculate_amounts_from_items(
+        self, items: list[dict], invoice_type: InvoiceType | None
+    ) -> tuple[float, float]:
+        """
+        Calculate (tax_amount, total_amount) from bill items.
+
+        - subtotal is sum(quantity * unit_price) across items
+        - tax is 5% only for TRIPLE_UNIFORM_INVOICE
+        """
+        subtotal = 0.0
+        for d in items or []:
+            if not isinstance(d, dict):
+                continue
+            try:
+                qty = float(d.get("quantity", 0) or 0)
+                up = float(d.get("unit_price", 0) or 0)
+                if qty < 0 or up < 0:
+                    continue
+                subtotal += qty * up
+            except (TypeError, ValueError):
+                continue
+        tax_amount = 0.0
+        if invoice_type == InvoiceType.TRIPLE_UNIFORM_INVOICE:
+            tax_amount = round(subtotal * 0.05, 2)
+        total = round(subtotal + tax_amount, 2)
+        return (tax_amount, total)
+
     def _items_from_db(self, raw: list[dict] | None) -> list[BillItemRead]:
         """Convert bill.items JSON (list of dicts) to list[BillItemRead]."""
         if not raw:
@@ -179,30 +206,45 @@ class BillService:
         )
         previous_bill_number = prev_result.scalar_one_or_none()
 
+        items_json: list[dict] = []
+        if bill.items:
+            for i, item in enumerate(bill.items):
+                try:
+                    qty = float(item.quantity)
+                except (TypeError, ValueError):
+                    qty = 0.0
+                try:
+                    up = float(item.unit_price)
+                except (TypeError, ValueError):
+                    up = 0.0
+                items_json.append(
+                    {
+                        "product_name": item.product_name or "",
+                        "quantity": qty,
+                        "unit_price": up,
+                        "amount": round(qty * up, 2),
+                        "sort_order": getattr(item, "sort_order", i),
+                    }
+                )
+
+        # Ensure amount/tax_amount are consistent with items.
+        tax_amount, amount = self._calculate_amounts_from_items(
+            items_json,
+            bill.invoice_type,
+        )
+
         db_bill = Bill(
             bill_number=_generate_bill_number(),
             customer_id=bill.customer_id,
             contract_id=bill.contract_id,
-            amount=bill.amount,
-            tax_amount=bill.tax_amount,
-            monthly_rent=bill.monthly_rent,
+            amount=amount,
+            tax_amount=tax_amount,
             invoice_type=bill.invoice_type,
             status=bill.status,
             notes=bill.notes or "",
             previous_bill_number=previous_bill_number,
+            items=items_json,
         )
-        if bill.items:
-            items_json = [
-                {
-                    "product_name": item.product_name or "",
-                    "quantity": float(item.quantity),
-                    "unit_price": float(item.unit_price),
-                    "amount": float(item.amount),
-                    "sort_order": getattr(item, "sort_order", i),
-                }
-                for i, item in enumerate(bill.items)
-            ]
-            db_bill.items = items_json
         self._session.add(db_bill)
         await self._session.commit()
         await self._session.refresh(db_bill)
@@ -215,19 +257,28 @@ class BillService:
         First bill's created_at/updated_at = contract start_date (帳單起始日期).
         """
         interval_months = int(db_contract.billing_interval.value)
-        monthly_rent = float(db_contract.monthly_rent)
-        amount = monthly_rent * interval_months
         invoice_type = (
             db_contract.invoice_type
             if db_contract.invoice_type is not None
             else InvoiceType.NO_INVOICE
         )
+        unit_price = float(db_contract.monthly_rent)
+        subtotal = unit_price * interval_months
+        tax_amount, amount = self._calculate_amounts_from_items(
+            [
+                {
+                    "quantity": float(interval_months),
+                    "unit_price": unit_price,
+                }
+            ],
+            invoice_type,
+        )
         items_json = [
             {
                 "product_name": db_contract.product_name or "",
                 "quantity": float(interval_months),
-                "unit_price": monthly_rent,
-                "amount": amount,
+                "unit_price": unit_price,
+                "amount": round(subtotal, 2),
                 "sort_order": 0,
             }
         ]
@@ -240,8 +291,7 @@ class BillService:
             customer_id=db_contract.customer_id,
             contract_id=db_contract.id,
             amount=amount,
-            tax_amount=0.0,
-            monthly_rent=monthly_rent,
+            tax_amount=tax_amount,
             invoice_type=invoice_type,
             status=BillStatus.DRAFT,
             notes="",
@@ -279,6 +329,7 @@ class BillService:
         update_data = bill_update.model_dump(exclude_unset=True)
         update_data.pop("bill_number", None)  # never update primary key
         items_payload: list[dict] | None = update_data.pop("items", None)
+        invoice_type_in_payload = "invoice_type" in update_data
 
         # Validate status transition if status is being updated
         if "status" in update_data:
@@ -299,16 +350,39 @@ class BillService:
         if items_payload is not None:
             items_json = []
             for sort_order, item in enumerate(items_payload):
+                try:
+                    qty = float(item.get("quantity", 0) or 0)
+                except (TypeError, ValueError):
+                    qty = 0.0
+                try:
+                    up = float(item.get("unit_price", 0) or 0)
+                except (TypeError, ValueError):
+                    up = 0.0
                 items_json.append(
                     {
                         "product_name": item.get("product_name") or "",
-                        "quantity": float(item.get("quantity", 0)),
-                        "unit_price": float(item.get("unit_price", 0)),
-                        "amount": float(item.get("amount", 0)),
+                        "quantity": qty,
+                        "unit_price": up,
+                        # Server-authoritative amount avoids stale client values.
+                        "amount": round(qty * up, 2),
                         "sort_order": item.get("sort_order", sort_order),
                     }
                 )
             db_bill.items = items_json
+            tax_amount, amount = self._calculate_amounts_from_items(
+                items_json,
+                db_bill.invoice_type,
+            )
+            db_bill.tax_amount = tax_amount
+            db_bill.amount = amount
+        elif invoice_type_in_payload:
+            # If invoice_type changes, recompute tax/amount from existing items.
+            tax_amount, amount = self._calculate_amounts_from_items(
+                getattr(db_bill, "items", []) or [],
+                db_bill.invoice_type,
+            )
+            db_bill.tax_amount = tax_amount
+            db_bill.amount = amount
 
         await self._session.commit()
         await self._session.refresh(db_bill)

@@ -70,7 +70,6 @@ export interface Bill {
   contract_id: string;
   amount: number;
   tax_amount: number;
-  monthly_rent: number;
   invoice_type: string | null;
   status: BillStatus;
   notes: string;
@@ -97,7 +96,6 @@ export interface BillUpdatePayload {
   status: BillStatus;
   notes?: string | null;
   tax_amount?: number | null;
-  monthly_rent?: number | null;
   invoice_type?: string | null;
   due_date?: string | null;
   sent_at?: string | null;
