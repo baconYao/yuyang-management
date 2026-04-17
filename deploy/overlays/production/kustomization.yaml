@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: yuyang
+
+resources:
+  - ../../base
+
+# Optional: Postgres on a bind-mounted host path (no local-path PVC).
+# Uncomment both lines after editing deploy/components/postgres-hostpath/postgres-hostpath.patch.yaml
+# components:
+#   - ../../components/postgres-hostpath
+
+# Set to your published GHCR tags (e.g. sha-<full_git_sha> or main / stage branch name).
+images:
+  - name: backend
+    newName: ghcr.io/baconyao/yuyang-management/backend
+    newTag: main
+  - name: frontend
+    newName: ghcr.io/baconyao/yuyang-management/frontend
+    newTag: main

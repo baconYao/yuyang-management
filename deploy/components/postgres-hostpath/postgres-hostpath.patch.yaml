@@ -1,0 +1,11 @@
+# JSON6902: drop dynamic PVC (local-path), use hostPath for Postgres data.
+# Set `path` to a directory on the k3s node that is bind-mounted from durable storage.
+- op: remove
+  path: /spec/volumeClaimTemplates
+- op: add
+  path: /spec/template/spec/volumes
+  value:
+    - name: data
+      hostPath:
+        path: /mnt/yuyang-management/postgres
+        type: DirectoryOrCreate
