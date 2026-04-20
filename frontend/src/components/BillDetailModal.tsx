@@ -192,7 +192,7 @@ export default function BillDetailModal({
         const intervalNum = parseInt(contract.billing_interval ?? '1', 10) || 1;
         const productName = contract.product_name ?? '';
         setTableRows([
-          createRow(productName, intervalNum, billData.monthly_rent),
+          createRow(productName, intervalNum, contract.monthly_rent ?? 0),
         ]);
       }
     } catch {
