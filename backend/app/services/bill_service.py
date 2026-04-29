@@ -1,9 +1,10 @@
 import logging
 import random
 import string
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -140,6 +141,7 @@ class BillService:
         customer_id: UUID | None = None,
         contract_id: UUID | None = None,
         statuses: list[BillStatus] | None = None,
+        within_days: int | None = None,
     ) -> list[BillRead]:
         """
         Get all bills, optionally filtered by customer_id, contract_id, or statuses. # noqa: E501
@@ -148,6 +150,8 @@ class BillService:
             customer_id: Optional customer ID to filter bills
             contract_id: Optional contract ID to filter bills
             statuses: Optional list of BillStatus to filter bills (e.g. [DRAFT], [PAID, OVERDUE, CANCELLED])
+            within_days: If set, only return bills whose reference date is within next N days.
+                        Reference date = COALESCE(due_date, created_at).
 
         Returns:
             List of bills
@@ -159,6 +163,14 @@ class BillService:
             statement = statement.where(Bill.contract_id == contract_id)
         if statuses:
             statement = statement.where(Bill.status.in_(statuses))
+        if within_days is not None:
+            if within_days < 0:
+                within_days = 0
+            now = datetime.utcnow()
+            until = now + timedelta(days=int(within_days))
+            ref_date = func.coalesce(Bill.due_date, Bill.created_at)
+            # Include all past bills and future bills up to now + N days.
+            statement = statement.where(ref_date < until)
         statement = statement.order_by(desc(Bill.created_at))
         result = await self._session.execute(statement)
         db_bills = result.scalars().all()
@@ -301,6 +313,73 @@ class BillService:
             updated_at=start_dt,
         )
         self._session.add(db_bill)
+
+    def create_bills_for_contract(
+        self,
+        db_contract: Contract,
+        bill_dates: list[datetime],
+    ) -> None:
+        """
+        Build and add all bills for a contract (e.g. when status becomes ACTIVE).
+        Does not commit; caller must commit to keep same transaction.
+
+        - status: DRAFT
+        - bill date is stored in created_at/updated_at (front-end uses created_at)
+        - amount/tax/items follow the same model as create_first_bill_for_contract
+        - previous_bill_number is chained in creation order
+        """
+        if not bill_dates:
+            return
+
+        interval_months = int(db_contract.billing_interval.value)
+        invoice_type = (
+            db_contract.invoice_type
+            if db_contract.invoice_type is not None
+            else InvoiceType.NO_INVOICE
+        )
+        unit_price = float(db_contract.monthly_rent)
+        subtotal = unit_price * interval_months
+        tax_amount, amount = self._calculate_amounts_from_items(
+            [
+                {
+                    "quantity": float(interval_months),
+                    "unit_price": unit_price,
+                }
+            ],
+            invoice_type,
+        )
+        items_json = [
+            {
+                "product_name": db_contract.product_name or "",
+                "quantity": float(interval_months),
+                "unit_price": unit_price,
+                "amount": round(subtotal, 2),
+                "sort_order": 0,
+            }
+        ]
+
+        prev_bill_number: str | None = None
+        for dt in bill_dates:
+            # Normalize to naive UTC for DB.
+            bill_dt = dt
+            if getattr(bill_dt, "tzinfo", None) is not None:
+                bill_dt = bill_dt.astimezone(UTC).replace(tzinfo=None)
+            db_bill = Bill(
+                bill_number=_generate_bill_number(),
+                customer_id=db_contract.customer_id,
+                contract_id=db_contract.id,
+                amount=amount,
+                tax_amount=tax_amount,
+                invoice_type=invoice_type,
+                status=BillStatus.DRAFT,
+                notes="",
+                previous_bill_number=prev_bill_number,
+                items=items_json,
+                created_at=bill_dt,
+                updated_at=bill_dt,
+            )
+            self._session.add(db_bill)
+            prev_bill_number = db_bill.bill_number
 
     async def update(self, bill_number: str, bill_update: BillUpdate) -> BillRead:  # noqa: E501
         """

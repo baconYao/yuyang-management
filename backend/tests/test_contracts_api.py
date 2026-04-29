@@ -9,6 +9,7 @@ from httpx import AsyncClient
 from sqlalchemy import delete, select
 
 from app.api.schemas.customer import CustomerType
+from app.database.models.bill import Bill
 from app.database.models.contract import Contract
 from app.database.models.customer import Customer
 
@@ -22,6 +23,7 @@ async def test_get_contract_by_id_success(client: AsyncClient, test_session):
     Test GET /api/v1/contracts/{contract_id} returns contract when found
     """
     # Ensure database is empty
+    await test_session.execute(delete(Bill))
     await test_session.execute(delete(Contract))
     await test_session.execute(delete(Customer))
     await test_session.commit()
@@ -129,6 +131,7 @@ async def test_create_contract_via_api(client: AsyncClient, test_session):
     Test POST /api/v1/contracts/ creates a contract in the test database
     """
     # Ensure database is empty
+    await test_session.execute(delete(Bill))
     await test_session.execute(delete(Contract))
     await test_session.execute(delete(Customer))
     await test_session.commit()
@@ -196,6 +199,7 @@ async def test_create_contract_via_api(client: AsyncClient, test_session):
     assert db_contract.customer_id == test_customer.id
 
     # Cleanup
+    await test_session.execute(delete(Bill))
     await test_session.execute(delete(Contract))
     await test_session.execute(delete(Customer))
     await test_session.commit()

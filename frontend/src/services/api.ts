@@ -75,6 +75,7 @@ export const billApi = {
     contract_id?: string;
     customer_id?: string;
     status?: BillStatus | BillStatus[];
+    within_days?: number;
   }): Promise<Bill[]> => {
     // Build query string explicitly so backend receives ?status=DRAFT (or status=SENT&status=PROCESSING)
     const searchParams = new URLSearchParams();
@@ -83,6 +84,9 @@ export const billApi = {
     if (filters?.status != null) {
       const statusList = Array.isArray(filters.status) ? filters.status : [filters.status];
       statusList.forEach((s) => searchParams.append('status', s));
+    }
+    if (typeof filters?.within_days === 'number') {
+      searchParams.set('within_days', String(filters.within_days));
     }
     const queryString = searchParams.toString();
     const url = queryString ? `/bills/?${queryString}` : '/bills/';

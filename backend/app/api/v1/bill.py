@@ -60,6 +60,11 @@ async def get_bills(
         None,
         description="Optional list of statuses to filter bills (e.g. DRAFT, PAID)",  # noqa: E501
     ),
+    within_days: int | None = Query(
+        None,
+        ge=0,
+        description="Optional horizon: bills within next N days (ref date = due_date else created_at).",  # noqa: E501
+    ),
 ):
     """
     Get all bills, optionally filtered by customer_id, contract_id, or status.
@@ -71,6 +76,7 @@ async def get_bills(
         customer_id=customer_id,
         contract_id=contract_id,
         statuses=status,
+        within_days=within_days,
     )
 
 

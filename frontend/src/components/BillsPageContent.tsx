@@ -32,13 +32,21 @@ function getInvoiceTypeLabel(value: string | null | undefined): string {
 export interface BillsPageContentProps {
   statusFilter: BillStatus | BillStatus[];
   title: string;
+  enableUpcomingDaysFilter?: boolean;
 }
 
-export default function BillsPageContent({ statusFilter, title }: BillsPageContentProps) {
+const UPCOMING_DAYS_OPTIONS = [7, 14, 21, 30, 45, 60, 90, 120] as const;
+
+export default function BillsPageContent({
+  statusFilter,
+  title,
+  enableUpcomingDaysFilter = false,
+}: BillsPageContentProps) {
   const [bills, setBills] = useState<Bill[]>([]);
   const [customerNameMap, setCustomerNameMap] = useState<Map<string, string | null>>(new Map());
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [upcomingDays, setUpcomingDays] = useState<number>(45);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
 
   const statusList = useMemo(
@@ -50,7 +58,10 @@ export default function BillsPageContent({ statusFilter, title }: BillsPageConte
     setLoading(true);
     try {
       const [billsData, customersData] = await Promise.all([
-        billApi.getAll({ status: statusList }),
+        billApi.getAll({
+          status: statusList,
+          within_days: enableUpcomingDaysFilter ? upcomingDays : undefined,
+        }),
         customerApi.getAll(),
       ]);
       setBills(billsData);
@@ -63,7 +74,7 @@ export default function BillsPageContent({ statusFilter, title }: BillsPageConte
     } finally {
       setLoading(false);
     }
-  }, [statusList]);
+  }, [enableUpcomingDaysFilter, statusList, upcomingDays]);
 
   useEffect(() => {
     fetchData();
@@ -96,13 +107,35 @@ export default function BillsPageContent({ statusFilter, title }: BillsPageConte
       <h1 className="text-3xl font-bold text-gray-800 mb-6">{title}</h1>
 
       <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-        <input
-          type="text"
-          placeholder="搜尋客戶名稱或帳單編號..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <div className="flex flex-col gap-3 md:flex-row">
+          <input
+            type="text"
+            placeholder="搜尋客戶名稱或帳單編號..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {enableUpcomingDaysFilter && (
+            <div className="w-full md:w-56">
+              <label className="sr-only" htmlFor="bill-date-range-filter">
+                帳單日期範圍
+              </label>
+              <select
+                id="bill-date-range-filter"
+                value={upcomingDays}
+                onChange={(e) => setUpcomingDays(Number(e.target.value))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="帳單日期範圍"
+              >
+                {UPCOMING_DAYS_OPTIONS.map((day) => (
+                  <option key={day} value={day}>
+                    {`${day} 天內`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
