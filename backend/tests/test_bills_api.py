@@ -158,7 +158,15 @@ async def test_get_bills_within_days_prefers_due_date_else_created_at(
         "invoice_type": "NO_INVOICE",
         "status": "DRAFT",
         "notes": "",
-        "items": [],
+        "items": [
+            {
+                "product_name": "Manual test item",
+                "quantity": 1,
+                "unit_price": 100,
+                "amount": 100,
+                "sort_order": 0,
+            }
+        ],
     }
     created_manual = await client.post("/api/v1/bills/", json=manual_bill_payload)
     assert created_manual.status_code == 201
