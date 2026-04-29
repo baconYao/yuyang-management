@@ -76,8 +76,8 @@ def _compute_bill_dates(
     Compute bill dates for a contract.
 
     Rules:
-    - first bill date = start_date
-    - each next bill date = previous + interval_months
+    - first scheduled date = start_date
+    - each next date = previous + interval_months
     - include dates while date <= end_date
     - normalize to naive UTC for DB consistency
     """
@@ -262,7 +262,7 @@ class ContractService:
         # Update only provided fields
         update_data = contract_update.model_dump(exclude_unset=True)
 
-        # When transitioning PENDING -> ACTIVE: create first bill and set next_billing_date # noqa: E501
+        # When transitioning PENDING -> ACTIVE: create all bills and set next_billing_date # noqa: E501
         creating_bills = False
         if "status" in update_data and update_data["status"] == ContractStatus.ACTIVE:  # noqa: E501
             if db_contract.status in (ContractStatus.PENDING):
@@ -296,7 +296,7 @@ class ContractService:
                     db_contract.end_date,
                     interval_months,
                 )
-                await BillService(self._session).create_bills_for_contract(
+                await BillService(self._session).create_all_bills_for_contract(
                     db_contract,
                     bill_dates=bill_dates,
                 )

@@ -306,90 +306,34 @@ class BillService:
         await self._session.refresh(db_bill)
         return self._bill_to_read(db_bill)
 
-    async def create_first_bill_for_contract(
-        self, db_contract: Contract
-    ) -> None:
-        """
-        Build and add the first bill for a contract (e.g. when status becomes ACTIVE). # noqa: E501
-        Does not commit; caller must commit to keep same transaction.
-        First bill's created_at/updated_at = contract start_date (帳單起始日期).
-        """
-        interval_months = int(db_contract.billing_interval.value)
-        invoice_type = (
-            db_contract.invoice_type
-            if db_contract.invoice_type is not None
-            else InvoiceType.NO_INVOICE
-        )
-        unit_price = float(db_contract.monthly_rent)
-        subtotal = unit_price * interval_months
-        tax_amount, amount = self._calculate_amounts_from_items(
-            [
-                {
-                    "quantity": float(interval_months),
-                    "unit_price": unit_price,
-                }
-            ],
-            invoice_type,
-        )
-        items_json = [
-            {
-                "product_name": db_contract.product_name or "",
-                "quantity": float(interval_months),
-                "unit_price": unit_price,
-                "amount": round(subtotal, 2),
-                "sort_order": 0,
-            }
-        ]
-        # 第一筆帳單的起始日期 = 合約起始日（前端顯示為 created_at）
-        start_dt = db_contract.start_date
-        if getattr(start_dt, "tzinfo", None) is not None:
-            start_dt = start_dt.astimezone(UTC).replace(tzinfo=None)
-        bill_numbers = await self._reserve_bill_numbers(db_contract, 1)
-        db_bill = Bill(
-            bill_number=bill_numbers[0],
-            customer_id=db_contract.customer_id,
-            contract_id=db_contract.id,
-            amount=amount,
-            tax_amount=tax_amount,
-            invoice_type=invoice_type,
-            status=BillStatus.DRAFT,
-            notes="",
-            previous_bill_number=None,
-            items=items_json,
-            created_at=start_dt,
-            updated_at=start_dt,
-        )
-        self._session.add(db_bill)
-
-    async def create_bills_for_contract(
+    async def create_all_bills_for_contract(
         self,
         db_contract: Contract,
         bill_dates: list[datetime],
     ) -> None:
         """
-        Build and add all bills for a contract (e.g. when status becomes ACTIVE).
+        Build and add all bills for a contract (e.g. on PENDING -> ACTIVE).
         Does not commit; caller must commit to keep same transaction.
 
         - status: DRAFT
-        - bill date is stored in created_at/updated_at (front-end uses created_at)
-        - amount/tax/items follow the same model as create_first_bill_for_contract
+        - bill date is stored in created_at/updated_at
+        - amount/tax/items use monthly_rent as one unit per bill
         - previous_bill_number is chained in creation order
         """
         if not bill_dates:
             return
 
-        interval_months = int(db_contract.billing_interval.value)
         invoice_type = (
             db_contract.invoice_type
             if db_contract.invoice_type is not None
             else InvoiceType.NO_INVOICE
         )
         unit_price = float(db_contract.monthly_rent)
-        subtotal = unit_price * interval_months
+        subtotal = unit_price
         tax_amount, amount = self._calculate_amounts_from_items(
             [
                 {
-                    "quantity": float(interval_months),
+                    "quantity": 1.0,
                     "unit_price": unit_price,
                 }
             ],
@@ -398,7 +342,7 @@ class BillService:
         items_json = [
             {
                 "product_name": db_contract.product_name or "",
-                "quantity": float(interval_months),
+                "quantity": 1.0,
                 "unit_price": unit_price,
                 "amount": round(subtotal, 2),
                 "sort_order": 0,
