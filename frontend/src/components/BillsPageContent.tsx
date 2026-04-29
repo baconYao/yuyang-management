@@ -4,12 +4,6 @@ import type { Bill, BillStatus } from '../types';
 import BillDetailModal from './BillDetailModal';
 import { getBillStatusDisplay } from '../utils/billStatusDisplay';
 
-const INVOICE_TYPE_LABELS: Record<string, string> = {
-  NO_INVOICE: '不開立發票',
-  DUPLICATE_UNIFORM_INVOICE: '二聯式發票',
-  TRIPLE_UNIFORM_INVOICE: '三聯式發票',
-};
-
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—';
   try {
@@ -22,11 +16,6 @@ function formatDate(iso: string | null | undefined): string {
   } catch {
     return iso;
   }
-}
-
-function getInvoiceTypeLabel(value: string | null | undefined): string {
-  if (!value) return '—';
-  return INVOICE_TYPE_LABELS[value] ?? value;
 }
 
 export interface BillsPageContentProps {
@@ -153,9 +142,6 @@ export default function BillsPageContent({
                   帳單起始日期
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  發票
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   總金額
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -187,9 +173,6 @@ export default function BillsPageContent({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                         {formatDate(bill.created_at)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        {getInvoiceTypeLabel(bill.invoice_type)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         ${bill.amount}
