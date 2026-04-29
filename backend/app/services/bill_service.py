@@ -349,9 +349,7 @@ class BillService:
             }
         ]
 
-        bill_numbers = await self._reserve_bill_numbers(
-            db_contract, len(bill_dates)
-        )
+        bill_numbers = await self._reserve_bill_numbers(db_contract, len(bill_dates))
         prev_bill_number: str | None = None
         for i, dt in enumerate(bill_dates):
             # Normalize to naive UTC for DB.

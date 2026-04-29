@@ -13,9 +13,7 @@ BILL_NUMBER_PATTERN = re.compile(r"^B-[A-Z]{5}-\d{2}$")
 
 
 @pytest.mark.asyncio
-async def test_pending_to_active_creates_all_bills(
-    client: AsyncClient, test_session
-):
+async def test_pending_to_active_creates_all_bills(client: AsyncClient, test_session):
     """
     PENDING -> ACTIVE should create all draft bills.
     created_at should align with contract bill dates.
@@ -51,9 +49,7 @@ async def test_pending_to_active_creates_all_bills(
         "billing_interval": "3",
         "status": "PENDING",
     }
-    create_resp = await client.post(
-        "/api/v1/contracts/", json=contract_payload
-    )
+    create_resp = await client.post("/api/v1/contracts/", json=contract_payload)
     assert create_resp.status_code == 201
     contract = create_resp.json()
     contract_id = contract["id"]
@@ -127,9 +123,7 @@ async def test_get_bills_within_days_prefers_due_date_else_created_at(
         "billing_interval": "3",
         "status": "PENDING",
     }
-    create_resp = await client.post(
-        "/api/v1/contracts/", json=contract_payload
-    )
+    create_resp = await client.post("/api/v1/contracts/", json=contract_payload)
     assert create_resp.status_code == 201
     contract_id = create_resp.json()["id"]
     patch_resp = await client.patch(
@@ -166,9 +160,7 @@ async def test_get_bills_within_days_prefers_due_date_else_created_at(
         "notes": "",
         "items": [],
     }
-    created_manual = await client.post(
-        "/api/v1/bills/", json=manual_bill_payload
-    )
+    created_manual = await client.post("/api/v1/bills/", json=manual_bill_payload)
     assert created_manual.status_code == 201
     manual_bill_number = created_manual.json()["bill_number"]
 
@@ -185,9 +177,7 @@ async def test_get_bills_within_days_prefers_due_date_else_created_at(
     )
     assert upd2.status_code == 200
 
-    horizon_resp = await client.get(
-        "/api/v1/bills/", params={"within_days": 7}
-    )
+    horizon_resp = await client.get("/api/v1/bills/", params={"within_days": 7})
     assert horizon_resp.status_code == 200
     horizon_bills = horizon_resp.json()
     horizon_numbers = {b["bill_number"] for b in horizon_bills}

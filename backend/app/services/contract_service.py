@@ -284,9 +284,9 @@ class ContractService:
         if creating_bills:
             # Prevent duplicate bill creation if status patch is repeated.
             existing_count_result = await self._session.execute(
-                select(func.count()).select_from(Bill).where(
-                    Bill.contract_id == db_contract.id
-                )
+                select(func.count())
+                .select_from(Bill)
+                .where(Bill.contract_id == db_contract.id)
             )
             existing_count = int(existing_count_result.scalar_one() or 0)
             if existing_count == 0:
