@@ -296,7 +296,7 @@ class ContractService:
                     db_contract.end_date,
                     interval_months,
                 )
-                BillService(self._session).create_bills_for_contract(
+                await BillService(self._session).create_bills_for_contract(
                     db_contract,
                     bill_dates=bill_dates,
                 )

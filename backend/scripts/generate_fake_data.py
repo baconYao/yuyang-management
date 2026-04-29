@@ -11,6 +11,7 @@ This script generates:
 
 import asyncio
 import random
+import re
 import string
 from datetime import datetime, timedelta
 from uuid import uuid4
@@ -274,20 +275,29 @@ def generate_contract(customer_id: str, contract_index: int) -> Contract:
     )
 
 
-def _generate_bill_number(billing_date: datetime, used: set[str]) -> str:
-    """Generate unique bill_number: B-YYYY-MM-XXXXX. Avoids collisions via used set."""
-    while True:
+def _generate_bill_number(
+    contract_number: str | None,
+    seq: int,
+    used: set[str],
+) -> str:
+    """Generate unique bill_number: B-<contract suffix>-<seq>."""
+    suffix = (contract_number or "").rsplit("-", 1)[-1].upper()
+    if not re.fullmatch(r"[A-Z]{5}", suffix):
         suffix = "".join(random.choices(string.ascii_uppercase, k=5))
-        candidate = f"B-{billing_date.year}-{billing_date.month:02d}-{suffix}"
-        if candidate not in used:
-            used.add(candidate)
-            return candidate
+    if seq > 99:
+        raise ValueError("Bill sequence exceeds 99")
+    candidate = f"B-{suffix}-{seq:02d}"
+    if candidate in used:
+        raise ValueError(f"Duplicate generated bill_number: {candidate}")
+    used.add(candidate)
+    return candidate
 
 
 def generate_bill(
     contract: Contract,
     previous_bill_number: str | None,
     billing_date: datetime,
+    seq: int,
     used_bill_numbers: set[str],
 ) -> Bill:
     """Generate one bill for a contract at the given billing_date. amount/tax_amount by invoice_type."""
@@ -299,7 +309,11 @@ def generate_bill(
         tax_amount = 0.0
     amount = round(base + tax_amount, 2)
 
-    bill_number = _generate_bill_number(billing_date, used_bill_numbers)
+    bill_number = _generate_bill_number(
+        contract.contract_number,
+        seq,
+        used_bill_numbers,
+    )
 
     status = random.choice(list(BillStatus))
     due_date = billing_date + timedelta(days=7)
@@ -422,9 +436,13 @@ async def generate_fake_data():
                 continue
 
             previous_bill_number: str | None = None
-            for billing_date in billing_dates:
+            for i, billing_date in enumerate(billing_dates, start=1):
                 bill = generate_bill(
-                    contract, previous_bill_number, billing_date, used_bill_numbers
+                    contract,
+                    previous_bill_number,
+                    billing_date,
+                    i,
+                    used_bill_numbers,
                 )
                 session.add(bill)
                 previous_bill_number = bill.bill_number

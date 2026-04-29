@@ -16,7 +16,7 @@ class Bill(SQLModel, table=True):
 
     bill_number: str = Field(
         sa_column=Column(String(15), primary_key=True),
-        description="Bill number (primary key, e.g., B-2024-11-asdfg)",
+        description="Bill number (primary key, e.g., B-YEPPK-01)",
     )
     customer_id: UUID = Field(
         sa_column=Column(

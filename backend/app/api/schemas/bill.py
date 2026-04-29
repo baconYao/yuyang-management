@@ -74,7 +74,7 @@ class Bill(BaseModel):
     )
     bill_number: str | None = Field(
         None,
-        description="Bill number, primary key (e.g., B-2024-11-asdfg); server-generated on create.",  # noqa: E501
+        description="Bill number, primary key (e.g., B-YEPPK-01); server-generated on create.",  # noqa: E501
         max_length=15,
     )
     previous_bill_number: str | None = Field(

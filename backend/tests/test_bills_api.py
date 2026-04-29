@@ -9,8 +9,7 @@ from app.database.models.bill import Bill
 from app.database.models.contract import Contract
 from app.database.models.customer import Customer
 
-
-BILL_NUMBER_PATTERN = re.compile(r"^B-\d{4}-\d{2}-[A-Z]{5}$")
+BILL_NUMBER_PATTERN = re.compile(r"^B-[A-Z]{5}-\d{2}$")
 
 
 @pytest.mark.asyncio
@@ -18,8 +17,8 @@ async def test_pending_to_active_creates_all_bills(
     client: AsyncClient, test_session
 ):
     """
-    When a contract transitions PENDING -> ACTIVE, the system should create all bills
-    across the contract period, with status DRAFT and created_at aligned to bill dates.
+    PENDING -> ACTIVE should create all draft bills.
+    created_at should align with contract bill dates.
     """
     await test_session.execute(delete(Bill))
     await test_session.execute(delete(Contract))
@@ -85,6 +84,8 @@ async def test_pending_to_active_creates_all_bills(
     for b in bills:
         assert BILL_NUMBER_PATTERN.match(b["bill_number"])
         assert b["status"] == "DRAFT"
+    seqs = sorted(int(b["bill_number"].rsplit("-", 1)[-1]) for b in bills)
+    assert seqs == [1, 2, 3, 4]
 
 
 @pytest.mark.asyncio
@@ -92,7 +93,7 @@ async def test_get_bills_within_days_prefers_due_date_else_created_at(
     client: AsyncClient, test_session
 ):
     """
-    within_days filters on COALESCE(due_date, created_at) between now and now+N days.
+    within_days filters on COALESCE(due_date, created_at).
     """
     await test_session.execute(delete(Bill))
     await test_session.execute(delete(Contract))
@@ -154,7 +155,7 @@ async def test_get_bills_within_days_prefers_due_date_else_created_at(
     )
     assert upd1.status_code == 200
 
-    # Create a manual bill whose created_at is used (due_date None), and put it in horizon.
+    # Create a manual bill using created_at fallback (due_date is None).
     manual_bill_payload = {
         "customer_id": str(cust.id),
         "contract_id": contract_id,
@@ -172,7 +173,7 @@ async def test_get_bills_within_days_prefers_due_date_else_created_at(
     manual_bill_number = created_manual.json()["bill_number"]
 
     # API doesn't expose created_at update, so we rely on \"just created\".
-    # Add one more manual bill and move its due_date out of horizon to ensure it's excluded.
+    # Add one more bill and set due_date out of horizon.
     out_bill_payload = dict(manual_bill_payload)
     created_out = await client.post("/api/v1/bills/", json=out_bill_payload)
     assert created_out.status_code == 201
