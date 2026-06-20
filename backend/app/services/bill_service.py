@@ -1,10 +1,11 @@
 import logging
 import random
+import re
 import string
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.bill import (
@@ -26,11 +27,17 @@ class InvalidStatusTransitionError(ValueError):
     """Raised when a bill status transition is not allowed."""
 
 
-def _generate_bill_number() -> str:
-    """Generate bill_number: B-<Year>-<Month>-<5 random uppercase letters>."""
-    today = date.today()
-    suffix = "".join(random.choices(string.ascii_uppercase, k=5))
-    return f"B-{today.year}-{today.month:02d}-{suffix}"
+_CONTRACT_SUFFIX_RE = re.compile(r"^[A-Z]{5}$")
+_BILL_NUMBER_RE = re.compile(r"^B-([A-Z]{5})-(\d{2})$")
+
+
+def _contract_suffix(contract_number: str | None) -> str:
+    """Return 5-letter suffix from contract number C-YYYY-MM-XXXXX."""
+    if contract_number:
+        suffix = contract_number.rsplit("-", 1)[-1].upper()
+        if _CONTRACT_SUFFIX_RE.fullmatch(suffix):
+            return suffix
+    return "".join(random.choices(string.ascii_uppercase, k=5))
 
 
 class BillService:
@@ -93,6 +100,41 @@ class BillService:
         read.items = self._items_from_db(getattr(db_bill, "items", None))
         return read
 
+    async def _reserve_bill_numbers(
+        self, db_contract: Contract, count: int
+    ) -> list[str]:
+        """
+        Allocate bill numbers for this contract.
+
+        Format: B-<contract suffix>-<seq>, seq starts at 01 and max 99.
+        """
+        if count <= 0:
+            return []
+        suffix = _contract_suffix(db_contract.contract_number)
+        prefix = f"B-{suffix}-"
+        result = await self._session.execute(
+            select(Bill.bill_number).where(Bill.contract_id == db_contract.id)
+        )
+        used = result.scalars().all()
+
+        max_seq = 0
+        for bill_number in used:
+            if not bill_number or not bill_number.startswith(prefix):
+                continue
+            m = _BILL_NUMBER_RE.fullmatch(bill_number)
+            if not m:
+                continue
+            max_seq = max(max_seq, int(m.group(2)))
+
+        start = max_seq + 1
+        end = start + count - 1
+        if end > 99:
+            raise ValueError(
+                f"Cannot allocate bill numbers for contract {db_contract.id}: "
+                f"sequence would exceed 99"
+            )
+        return [f"{prefix}{seq:02d}" for seq in range(start, end + 1)]
+
     async def get_by_bill_number(self, bill_number: str) -> BillRead | None:
         """
         Get a bill by bill_number (table primary key).
@@ -140,6 +182,7 @@ class BillService:
         customer_id: UUID | None = None,
         contract_id: UUID | None = None,
         statuses: list[BillStatus] | None = None,
+        within_days: int | None = None,
     ) -> list[BillRead]:
         """
         Get all bills, optionally filtered by customer_id, contract_id, or statuses. # noqa: E501
@@ -148,6 +191,8 @@ class BillService:
             customer_id: Optional customer ID to filter bills
             contract_id: Optional contract ID to filter bills
             statuses: Optional list of BillStatus to filter bills (e.g. [DRAFT], [PAID, OVERDUE, CANCELLED])
+            within_days: If set, only return bills whose reference date is within next N days.
+                        Reference date = COALESCE(due_date, created_at).
 
         Returns:
             List of bills
@@ -159,6 +204,14 @@ class BillService:
             statement = statement.where(Bill.contract_id == contract_id)
         if statuses:
             statement = statement.where(Bill.status.in_(statuses))
+        if within_days is not None:
+            if within_days < 0:
+                within_days = 0
+            now = datetime.utcnow()
+            until = now + timedelta(days=int(within_days))
+            ref_date = func.coalesce(Bill.due_date, Bill.created_at)
+            # Include all past bills and future bills up to now + N days.
+            statement = statement.where(ref_date < until)
         statement = statement.order_by(desc(Bill.created_at))
         result = await self._session.execute(statement)
         db_bills = result.scalars().all()
@@ -191,7 +244,8 @@ class BillService:
         contract_result = await self._session.execute(
             select(Contract).where(Contract.id == bill.contract_id)
         )
-        if contract_result.scalar_one_or_none() is None:
+        db_contract = contract_result.scalar_one_or_none()
+        if db_contract is None:
             logger.warning(
                 f"Failed to create bill: contract_id {bill.contract_id} does not exist"  # noqa: E501
             )
@@ -233,8 +287,10 @@ class BillService:
             bill.invoice_type,
         )
 
+        bill_number = (await self._reserve_bill_numbers(db_contract, 1))[0]
+
         db_bill = Bill(
-            bill_number=_generate_bill_number(),
+            bill_number=bill_number,
             customer_id=bill.customer_id,
             contract_id=bill.contract_id,
             amount=amount,
@@ -250,24 +306,34 @@ class BillService:
         await self._session.refresh(db_bill)
         return self._bill_to_read(db_bill)
 
-    def create_first_bill_for_contract(self, db_contract: Contract) -> None:
+    async def create_all_bills_for_contract(
+        self,
+        db_contract: Contract,
+        bill_dates: list[datetime],
+    ) -> None:
         """
-        Build and add the first bill for a contract (e.g. when status becomes ACTIVE). # noqa: E501
+        Build and add all bills for a contract (e.g. on PENDING -> ACTIVE).
         Does not commit; caller must commit to keep same transaction.
-        First bill's created_at/updated_at = contract start_date (帳單起始日期).
+
+        - status: DRAFT
+        - bill date is stored in created_at/updated_at
+        - amount/tax/items use monthly_rent as one unit per bill
+        - previous_bill_number is chained in creation order
         """
-        interval_months = int(db_contract.billing_interval.value)
+        if not bill_dates:
+            return
+
         invoice_type = (
             db_contract.invoice_type
             if db_contract.invoice_type is not None
             else InvoiceType.NO_INVOICE
         )
         unit_price = float(db_contract.monthly_rent)
-        subtotal = unit_price * interval_months
+        subtotal = unit_price
         tax_amount, amount = self._calculate_amounts_from_items(
             [
                 {
-                    "quantity": float(interval_months),
+                    "quantity": 1.0,
                     "unit_price": unit_price,
                 }
             ],
@@ -276,31 +342,36 @@ class BillService:
         items_json = [
             {
                 "product_name": db_contract.product_name or "",
-                "quantity": float(interval_months),
+                "quantity": 1.0,
                 "unit_price": unit_price,
                 "amount": round(subtotal, 2),
                 "sort_order": 0,
             }
         ]
-        # 第一筆帳單的起始日期 = 合約起始日（前端顯示為 created_at）
-        start_dt = db_contract.start_date
-        if getattr(start_dt, "tzinfo", None) is not None:
-            start_dt = start_dt.astimezone(UTC).replace(tzinfo=None)
-        db_bill = Bill(
-            bill_number=_generate_bill_number(),
-            customer_id=db_contract.customer_id,
-            contract_id=db_contract.id,
-            amount=amount,
-            tax_amount=tax_amount,
-            invoice_type=invoice_type,
-            status=BillStatus.DRAFT,
-            notes="",
-            previous_bill_number=None,
-            items=items_json,
-            created_at=start_dt,
-            updated_at=start_dt,
-        )
-        self._session.add(db_bill)
+
+        bill_numbers = await self._reserve_bill_numbers(db_contract, len(bill_dates))
+        prev_bill_number: str | None = None
+        for i, dt in enumerate(bill_dates):
+            # Normalize to naive UTC for DB.
+            bill_dt = dt
+            if getattr(bill_dt, "tzinfo", None) is not None:
+                bill_dt = bill_dt.astimezone(UTC).replace(tzinfo=None)
+            db_bill = Bill(
+                bill_number=bill_numbers[i],
+                customer_id=db_contract.customer_id,
+                contract_id=db_contract.id,
+                amount=amount,
+                tax_amount=tax_amount,
+                invoice_type=invoice_type,
+                status=BillStatus.DRAFT,
+                notes="",
+                previous_bill_number=prev_bill_number,
+                items=items_json,
+                created_at=bill_dt,
+                updated_at=bill_dt,
+            )
+            self._session.add(db_bill)
+            prev_bill_number = db_bill.bill_number
 
     async def update(self, bill_number: str, bill_update: BillUpdate) -> BillRead:  # noqa: E501
         """

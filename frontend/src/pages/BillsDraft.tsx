@@ -5,6 +5,7 @@ export default function BillsDraft() {
     <BillsPageContent
       statusFilter="DRAFT"
       title="未處理的帳單"
+      enableUpcomingDaysFilter
     />
   );
 }

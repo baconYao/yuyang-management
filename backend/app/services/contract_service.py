@@ -5,7 +5,7 @@ import string
 from datetime import UTC, date, datetime
 from uuid import UUID
 
-from sqlalchemy import delete
+from sqlalchemy import delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -15,6 +15,7 @@ from app.api.schemas.contract import (
     ContractUpdate,
     ContractWrite,
 )
+from app.database.models.bill import Bill
 from app.database.models.contract import Contract
 from app.database.models.customer import Customer
 from app.services.bill_service import BillService
@@ -64,6 +65,35 @@ def _add_months(dt: datetime, months: int) -> datetime:
         dt.second,
         dt.microsecond,
     )
+
+
+def _compute_bill_dates(
+    start_date: datetime,
+    end_date: datetime,
+    interval_months: int,
+) -> list[datetime]:
+    """
+    Compute bill dates for a contract.
+
+    Rules:
+    - first scheduled date = start_date
+    - each next date = previous + interval_months
+    - include dates while date <= end_date
+    - normalize to naive UTC for DB consistency
+    """
+    if interval_months <= 0:
+        return []
+    start_dt = _to_naive_utc(start_date)
+    end_dt = _to_naive_utc(end_date)
+    if start_dt > end_dt:
+        return []
+
+    dates: list[datetime] = []
+    cur = start_dt
+    while cur <= end_dt:
+        dates.append(cur)
+        cur = _add_months(cur, interval_months)
+    return dates
 
 
 class ContractService:
@@ -232,11 +262,11 @@ class ContractService:
         # Update only provided fields
         update_data = contract_update.model_dump(exclude_unset=True)
 
-        # When transitioning PENDING -> ACTIVE: create first bill and set next_billing_date # noqa: E501
-        creating_first_bill = False
+        # When transitioning PENDING -> ACTIVE: create all bills and set next_billing_date # noqa: E501
+        creating_bills = False
         if "status" in update_data and update_data["status"] == ContractStatus.ACTIVE:  # noqa: E501
             if db_contract.status in (ContractStatus.PENDING):
-                creating_first_bill = True
+                creating_bills = True
                 if "next_billing_date" not in update_data:
                     n = int(db_contract.billing_interval.value)
                     update_data["next_billing_date"] = _add_months(
@@ -251,8 +281,25 @@ class ContractService:
         for field, value in update_data.items():
             setattr(db_contract, field, value)
 
-        if creating_first_bill:
-            BillService(self._session).create_first_bill_for_contract(db_contract)  # noqa: E501
+        if creating_bills:
+            # Prevent duplicate bill creation if status patch is repeated.
+            existing_count_result = await self._session.execute(
+                select(func.count())
+                .select_from(Bill)
+                .where(Bill.contract_id == db_contract.id)
+            )
+            existing_count = int(existing_count_result.scalar_one() or 0)
+            if existing_count == 0:
+                interval_months = int(db_contract.billing_interval.value)
+                bill_dates = _compute_bill_dates(
+                    db_contract.start_date,
+                    db_contract.end_date,
+                    interval_months,
+                )
+                await BillService(self._session).create_all_bills_for_contract(
+                    db_contract,
+                    bill_dates=bill_dates,
+                )
 
         # Commit the changes
         await self._session.commit()
