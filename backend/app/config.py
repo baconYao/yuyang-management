@@ -14,6 +14,7 @@ class DatabaseSettings(BaseSettings):
     POSTGRES_USER: str = Field(default="postgres")
     POSTGRES_PASSWORD: str = Field(default="postgres")
     POSTGRES_DB: str = Field(default="yuyang_db")
+    RUN_DB_MIGRATIONS: bool = Field(default=True)
 
     model_config = _base_config
 

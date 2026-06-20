@@ -1,3 +1,9 @@
+# flake8: noqa: E402
+
+import os
+
+os.environ.setdefault("RUN_DB_MIGRATIONS", "false")
+
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine

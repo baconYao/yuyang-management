@@ -4,12 +4,14 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
 from app.api.v1 import router as v1_router
-from app.database.session import create_db_tables
+from app.config import db_settings
+from app.database.migrate import run_migrations
 
 
 @asynccontextmanager
 async def lifespan_handler(app: FastAPI):
-    await create_db_tables()
+    if db_settings.RUN_DB_MIGRATIONS:
+        await run_migrations()
     yield
 
 
