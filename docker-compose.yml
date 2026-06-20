@@ -46,6 +46,9 @@ services:
       - ./backend/app:/app/app
       # Mount scripts directory for data generation
       - ./backend/scripts:/app/scripts
+      # Alembic migrations (must match /app/migrations in the image)
+      - ./backend/alembic.ini:/app/alembic.ini
+      - ./backend/migrations:/app/migrations
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s

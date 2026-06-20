@@ -105,9 +105,47 @@ kubectl -n yuyang logs deploy/frontend --tail=50
 
 The `frontend` Service is **NodePort** with fixed **`nodePort: 61080`** (fits NodePort ranges such as 61000–62000). Open `http://<node-ip>:61080`. If your cluster uses another range, change [base/frontend/service.yaml](base/frontend/service.yaml). The frontend nginx image proxies `/api` to the backend Service **`api`** (port 8000), matching [frontend/nginx.conf](../frontend/nginx.conf).
 
-## 4. Migrations
+## 4. Database migrations
 
-The API runs `create_db_tables()` on startup ([backend/app/main.py](../backend/app/main.py)). For production you may still want Alembic migrations; run a one-off Job or exec into the API pod if needed.
+On startup the API runs **Alembic `upgrade head`** (with retries until PostgreSQL is ready). The backend Deployment also has an **initContainer** that waits for `postgres` via `pg_isready` before the API container starts.
+
+Requirements:
+
+- The backend image must include `alembic.ini` and `migrations/` (see [backend/Dockerfile](../backend/Dockerfile)).
+- Rebuild and push a new backend image after pulling these changes.
+
+If the API pod is in **CrashLoopBackOff**, check logs:
+
+```bash
+kubectl -n yuyang logs deploy/api --tail=100
+kubectl -n yuyang logs deploy/api -c wait-for-postgres   # init container
+```
+
+### Recover from a broken / partial schema
+
+If a previous deploy used `create_all()` and left tables without Alembic version tracking, or migrations fail with "relation already exists":
+
+**Option A — fresh database (simplest for first deploy):**
+
+```bash
+# Stop workloads, remove postgres pod + data on the volume, then re-apply
+kubectl -n yuyang delete statefulset postgres
+# Clear hostPath dir on the node (e.g. /mnt/yuyang-management/postgres) or delete PVC
+kubectl apply -k deploy/overlays/production
+```
+
+**Option B — DB already matches current models:**
+
+```bash
+kubectl -n yuyang exec -it deploy/api -- alembic stamp head
+kubectl -n yuyang rollout restart deploy/api
+```
+
+**Option C — manual migration:**
+
+```bash
+kubectl -n yuyang exec -it deploy/api -- alembic upgrade head
+```
 
 ## 5. Troubleshooting
 

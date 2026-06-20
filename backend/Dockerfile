@@ -34,6 +34,9 @@ RUN uv pip install --system --no-cache -e .
 COPY app/ ./app/
 # Copy scripts directory
 COPY scripts/ ./scripts/
+# Database migrations (Alembic)
+COPY alembic.ini ./
+COPY migrations/ ./migrations/
 
 # Change ownership to non-root user
 RUN chown -R appuser:appuser /app

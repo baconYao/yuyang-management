@@ -16,6 +16,29 @@ spec:
     spec:
       imagePullSecrets:
         - name: ghcr-pull
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:17-alpine
+          env:
+            - name: PGHOST
+              value: postgres
+            - name: PGPORT
+              value: "5432"
+            - name: PGUSER
+              value: postgres
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: password
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready; do
+                echo "waiting for postgres..."
+                sleep 2
+              done
       containers:
         - name: api
           image: backend
