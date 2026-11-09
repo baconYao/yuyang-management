@@ -16,6 +16,7 @@ export interface Customer {
   invoice_number: string | null;
   contact_phone: string | null;
   messaging_app_line: string | null;
+  city: string | null;
   address: string | null;
   primary_contact: string | null;
   customer_type: CustomerType | null;

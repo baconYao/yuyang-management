@@ -28,6 +28,7 @@ const initialForm = {
   primary_contact: '',
   contact_phone: '',
   messaging_app_line: '',
+  city: '',
   address: '',
   customer_type: '' as CustomerType | '',
   status: 'ACTIVE' as CustomerStatus,
@@ -37,6 +38,7 @@ const REQUIRED_FIELDS: { key: keyof typeof initialForm; label: string }[] = [
   { key: 'customer_name', label: '客戶名稱' },
   { key: 'primary_contact', label: '聯絡人' },
   { key: 'contact_phone', label: '聯絡電話' },
+  { key: 'city', label: '縣市' },
   { key: 'address', label: '地址' },
   { key: 'customer_type', label: '客戶類型' },
 ];
@@ -103,6 +105,7 @@ export default function AddCustomerModal({
           primary_contact: form.primary_contact || null,
           contact_phone: form.contact_phone || null,
           messaging_app_line: form.messaging_app_line || null,
+          city: form.city.trim(),
           address: form.address || null,
           customer_type: (form.customer_type || null) as CustomerType | null,
           status: form.status,
@@ -262,6 +265,26 @@ export default function AddCustomerModal({
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="請輸入 LINE ID"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  縣市 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={form.city}
+                  onChange={(e) => update('city', e.target.value)}
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    fieldErrors.city
+                      ? 'border-red-500 focus:ring-red-500'
+                      : 'border-gray-300'
+                  }`}
+                  placeholder="例如：苗栗縣"
+                  aria-invalid={!!fieldErrors.city}
+                />
+                {fieldErrors.city && (
+                  <p className="mt-1 text-sm text-red-600">{fieldErrors.city}</p>
+                )}
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">

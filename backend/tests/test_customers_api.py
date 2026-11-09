@@ -41,6 +41,7 @@ async def test_create_customer_via_api(client: AsyncClient, test_session):
         "invoice_number": "API001",
         "contact_phone": "0911111111",
         "messaging_app_line": "api_test_line",
+        "city": "苗栗縣",
         "address": "Test Address",
         "primary_contact": "Test Contact",
         "customer_type": "COMPANY",
@@ -53,6 +54,7 @@ async def test_create_customer_via_api(client: AsyncClient, test_session):
     # Verify response
     assert created_customer["customer_name"] == "API Test Customer"
     assert created_customer["invoice_number"] == "API001"
+    assert created_customer["city"] == "苗栗縣"
     assert created_customer["id"] is not None
 
     # Verify customer exists in test database

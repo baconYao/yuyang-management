@@ -32,6 +32,7 @@ class BaseCustomer(BaseModel):
     messaging_app_line: str | None = Field(
         None, description="Messaging app (Line, etc.)"
     )
+    city: str = Field("", description="City/county (縣市), e.g. 苗栗縣")
     address: str | None = Field(None, description="Address")
     primary_contact: str | None = Field(None, description="Primary contact person")  # noqa: E501
     customer_type: CustomerType | None = Field(None, description="Customer type")  # noqa: E501
