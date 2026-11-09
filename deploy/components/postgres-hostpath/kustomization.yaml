@@ -1,7 +1,11 @@
-# Optional component: replace Postgres PVC with hostPath on the node.
+# Optional component: replace Postgres PVC with hostPath on the node, and add a daily pg_dump CronJob
+# that writes to the same node volume.
 # Include from overlays/production via `components:` (see that file and deploy/README.md).
 apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
+
+resources:
+  - backup-cronjob.yaml
 
 patches:
   - path: postgres-hostpath.patch.yaml
