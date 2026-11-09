@@ -42,7 +42,7 @@ spec:
       containers:
         - name: api
           image: backend
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
               name: http
