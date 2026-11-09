@@ -105,6 +105,31 @@ kubectl -n yuyang logs deploy/frontend --tail=50
 
 The `frontend` Service is **NodePort** with fixed **`nodePort: 61080`** (fits NodePort ranges such as 61000–62000). Open `http://<node-ip>:61080`. If your cluster uses another range, change [base/frontend/service.yaml](base/frontend/service.yaml). The frontend nginx image proxies `/api` to the backend Service **`api`** (port 8000), matching [frontend/nginx.conf](../frontend/nginx.conf).
 
+## Database backup (hostPath component)
+
+The `postgres-hostpath` component also installs the `postgres-backup` CronJob: a daily `pg_dump -Fc` of `yuyang_db`
+at 03:00 Asia/Taipei (19:00 UTC, because k3s v1.21 has no CronJob `timeZone`). Dumps go to `/mnt/yuyang-management/backups`
+on the node (same volume as the database, files are mode 600), and the newest 14 are kept (`KEEP` in
+[backup-cronjob.yaml](components/postgres-hostpath/backup-cronjob.yaml)). Each dump is checked with `pg_restore --list`
+before it replaces the `.tmp` file.
+
+```bash
+kubectl -n yuyang create job --from=cronjob/postgres-backup postgres-backup-manual   # run now
+kubectl -n yuyang logs job/postgres-backup-manual
+kubectl -n yuyang get cronjob,jobs
+```
+
+This is **not** an off-disk backup. Copying it elsewhere is tracked in [docs/TODO.md](../docs/TODO.md).
+Dumps contain real customer data: keep the destination access-restricted.
+
+### Restore
+
+Copy the dump to the machine running `kubectl` (for example with the QNAP File Station), then:
+
+```bash
+kubectl -n yuyang exec -i postgres-0 -- sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" pg_restore -U postgres -d yuyang_db --clean --if-exists' < yuyang_db-YYYYMMDD-HHMMSS.dump
+```
+
 ## 4. Database migrations
 
 On startup the API runs **Alembic `upgrade head`** (with retries until PostgreSQL is ready). The backend Deployment also has an **initContainer** that waits for `postgres` via `pg_isready` before the API container starts.

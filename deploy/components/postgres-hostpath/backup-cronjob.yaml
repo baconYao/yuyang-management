@@ -1,0 +1,63 @@
+# Daily pg_dump of yuyang_db onto the same node volume (/mnt/yuyang-management/backups).
+# This is NOT an off-disk backup: copy the directory elsewhere (see docs/TODO.md).
+# k3s v1.21 has no CronJob timeZone field; the schedule is in node time (UTC): 19:00 UTC = 03:00 Asia/Taipei.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  labels:
+    app: postgres-backup
+spec:
+  schedule: "0 19 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: postgres-backup
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: pg-dump
+              image: postgres:17-alpine
+              env:
+                - name: PGHOST
+                  value: postgres
+                - name: PGUSER
+                  value: postgres
+                - name: PGDATABASE
+                  value: yuyang_db
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secret
+                      key: password
+                - name: KEEP
+                  value: "14"
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  umask 077
+                  cd /backups
+                  f="yuyang_db-$(date -u +%Y%m%d-%H%M%S).dump"
+                  # write to .tmp first so a failed dump never leaves a file that looks valid
+                  pg_dump -Fc -f "$f.tmp"
+                  pg_restore --list "$f.tmp" > /dev/null
+                  mv "$f.tmp" "$f"
+                  # keep the newest $KEEP dumps
+                  ls -1t yuyang_db-*.dump | tail -n +$((KEEP + 1)) | xargs -r rm -f
+                  ls -lh yuyang_db-*.dump
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              hostPath:
+                path: /mnt/yuyang-management/backups
+                type: DirectoryOrCreate
