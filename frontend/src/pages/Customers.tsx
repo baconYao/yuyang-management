@@ -17,6 +17,13 @@ function formatContactInfo(customer: Customer): string {
   return parts.length ? parts.join(' / ') : '—';
 }
 
+// address often omits the city/county; prefix it so same-named customers are distinguishable
+function formatAddress(customer: Customer): string {
+  const { city, address } = customer;
+  if (!address) return city || '—';
+  return city && !address.startsWith(city) ? `${city}${address}` : address;
+}
+
 function getStatusLabel(status: Customer['status']): string {
   if (status === 'TERMINATED') return '無合作';
   return '合作中';
@@ -222,6 +229,9 @@ export default function Customers() {
                   聯絡資訊
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  地址
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   合作狀態
                 </th>
               </tr>
@@ -229,7 +239,7 @@ export default function Customers() {
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
                     沒有找到客戶資料
                   </td>
                 </tr>
@@ -253,6 +263,9 @@ export default function Customers() {
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-700 max-w-xs truncate">
                         {formatContactInfo(customer)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700 max-w-xs truncate">
+                        {formatAddress(customer)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span

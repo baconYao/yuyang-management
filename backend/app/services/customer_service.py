@@ -72,6 +72,7 @@ class CustomerService:
             invoice_number=customer.invoice_number,
             contact_phone=customer.contact_phone,
             messaging_app_line=customer.messaging_app_line,
+            city=customer.city,
             address=customer.address,
             primary_contact=customer.primary_contact,
             customer_type=customer.customer_type,

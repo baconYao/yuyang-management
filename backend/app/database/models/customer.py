@@ -36,6 +36,7 @@ class Customer(SQLModel, table=True):
     invoice_number: str | None = None
     contact_phone: str
     messaging_app_line: str | None = None
+    city: str = Field(default="", sa_column_kwargs={"server_default": ""})
     address: str
     primary_contact: str
     customer_type: CustomerType

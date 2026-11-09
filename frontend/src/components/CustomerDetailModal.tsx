@@ -20,6 +20,7 @@ const REQUIRED_FIELDS: { key: string; label: string }[] = [
   { key: 'customer_name', label: '客戶名稱' },
   { key: 'primary_contact', label: '聯絡人' },
   { key: 'contact_phone', label: '聯絡電話' },
+  { key: 'city', label: '縣市' },
   { key: 'address', label: '地址' },
   { key: 'customer_type', label: '客戶類型' },
 ];
@@ -31,6 +32,7 @@ type FormState = {
   primary_contact: string;
   contact_phone: string;
   messaging_app_line: string;
+  city: string;
   address: string;
   customer_type: CustomerType | '';
   status: CustomerStatus;
@@ -44,6 +46,7 @@ function customerToForm(c: Customer): FormState {
     primary_contact: c.primary_contact ?? '',
     contact_phone: c.contact_phone ?? '',
     messaging_app_line: c.messaging_app_line ?? '',
+    city: c.city ?? '',
     address: c.address ?? '',
     customer_type: (c.customer_type as CustomerType) ?? '',
     status: (c.status as CustomerStatus) ?? 'ACTIVE',
@@ -161,6 +164,7 @@ export default function CustomerDetailModal({
           primary_contact: form.primary_contact || null,
           contact_phone: form.contact_phone || null,
           messaging_app_line: form.messaging_app_line || null,
+          city: form.city.trim(),
           address: form.address || null,
           customer_type: (form.customer_type || null) as CustomerType | null,
           status: form.status,
@@ -306,6 +310,23 @@ export default function CustomerDetailModal({
                     placeholder="請輸入 LINE ID"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    縣市 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={form.city}
+                    onChange={(e) => update('city', e.target.value)}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      fieldErrors.city ? 'border-red-500 focus:ring-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="例如：苗栗縣"
+                  />
+                  {fieldErrors.city && (
+                    <p className="mt-1 text-sm text-red-600">{fieldErrors.city}</p>
+                  )}
+                </div>
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     地址 <span className="text-red-500">*</span>
@@ -403,6 +424,10 @@ export default function CustomerDetailModal({
               <div>
                 <dt className="text-gray-500 font-medium">LINE</dt>
                 <dd className="text-gray-900">{customer.messaging_app_line || '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500 font-medium">縣市</dt>
+                <dd className="text-gray-900">{customer.city || '—'}</dd>
               </div>
               <div className="sm:col-span-2">
                 <dt className="text-gray-500 font-medium">地址</dt>
