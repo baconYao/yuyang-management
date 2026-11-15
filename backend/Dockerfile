@@ -2,6 +2,8 @@ FROM python:3.12-slim
 
 # WeasyPrint system dependencies (Pango, Cairo, GObject, etc.)
 # + fonts-noto-cjk for Chinese (Traditional) text in PDF
+# + libharfbuzz-subset0: without it WeasyPrint subsets the CJK font with pure-Python fontTools
+#   (~30 s per PDF on the NAS, ~0.2 s with it)
 # libgdk-pixbuf omitted on Debian Trixie (package renamed); optional for image-heavy PDFs
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
@@ -9,6 +11,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     libpangocairo-1.0-0 \
     libpangoft2-1.0-0 \
     libcairo2 \
+    libharfbuzz-subset0 \
     shared-mime-info \
     fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
