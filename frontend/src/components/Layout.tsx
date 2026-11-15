@@ -1,19 +1,33 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useBillCounts } from '../hooks/useBillCounts';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 const BILL_SUB_ROUTES = [
-  { path: '/bills/draft', label: '未處理的帳單' },
-  { path: '/bills/processing', label: '請款中的帳單' },
+  { path: '/bills/draft', label: '未處理的帳單', countKey: 'draft' },
+  { path: '/bills/processing', label: '請款中的帳單', countKey: 'processing' },
 ] as const;
+
+function CountBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-semibold leading-5 text-white"
+      aria-label={`${count} 筆`}
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
 
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const isBillsPath = location.pathname.startsWith('/bills');
   const [billsMenuOpen, setBillsMenuOpen] = useState(isBillsPath);
+  const counts = useBillCounts();
 
   useEffect(() => {
     if (isBillsPath) setBillsMenuOpen(true);
@@ -68,27 +82,31 @@ export default function Layout({ children }: LayoutProps) {
               }`}
             >
               <span className="ml-3">帳單</span>
-              <svg
-                className={`ml-2 h-4 w-4 shrink-0 transition-transform ${billsMenuOpen ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+              <span className="flex items-center gap-2">
+                <CountBadge count={counts.draft + counts.processing} />
+                <svg
+                  className={`h-4 w-4 shrink-0 transition-transform ${billsMenuOpen ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </span>
             </button>
             {billsMenuOpen && (
               <div className="bg-gray-50/80">
-                {BILL_SUB_ROUTES.map(({ path, label }) => (
+                {BILL_SUB_ROUTES.map(({ path, label, countKey }) => (
                   <Link
                     key={path}
                     to={path}
-                    className={`flex items-center py-2.5 pl-10 pr-6 text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors ${
+                    className={`flex items-center justify-between py-2.5 pl-10 pr-6 text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors ${
                       isBillsSubActive(path) ? 'bg-blue-50 border-r-4 border-blue-600 text-blue-600 font-medium' : ''
                     }`}
                   >
-                    {label}
+                    <span>{label}</span>
+                    <CountBadge count={counts[countKey]} />
                   </Link>
                 ))}
               </div>

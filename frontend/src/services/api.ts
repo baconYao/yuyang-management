@@ -1,6 +1,10 @@
 import axios from 'axios';
 import type { Bill, BillStatus, BillUpdatePayload, Customer, Contract } from '../types';
 
+/** Fired after changes that can alter bill counts (sidebar badges listen for it). */
+export const BILLS_CHANGED_EVENT = 'bills-changed';
+const notifyBillsChanged = () => window.dispatchEvent(new Event(BILLS_CHANGED_EVENT));
+
 const api = axios.create({
   baseURL: '/api/v1',
   headers: {
@@ -62,6 +66,7 @@ export const contractApi = {
 
   update: async (id: string, contract: Partial<Contract>): Promise<Contract> => {
     const response = await api.patch<Contract>(`/contracts/${id}`, contract);
+    notifyBillsChanged(); // activating a contract creates its bills
     return response.data;
   },
 
@@ -111,6 +116,7 @@ export const billApi = {
       `/bills/${encodeURIComponent(billNumber)}`,
       payload
     );
+    notifyBillsChanged();
     return response.data;
   },
 
