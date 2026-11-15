@@ -8,6 +8,7 @@ from sqlalchemy import delete
 from app.database.models.bill import Bill
 from app.database.models.contract import Contract
 from app.database.models.customer import Customer
+from app.services.contract_service import _add_months
 
 BILL_NUMBER_PATTERN = re.compile(r"^B-[A-Z]{5}-\d{2}$")
 
@@ -112,7 +113,7 @@ async def test_get_bills_within_days_prefers_due_date_else_created_at(
 
     now = datetime.utcnow()
     start_date = now - timedelta(days=30)
-    end_date = now + timedelta(days=365)
+    end_date = _add_months(start_date, 12) - timedelta(days=1)
 
     contract_payload = {
         "customer_id": str(cust.id),

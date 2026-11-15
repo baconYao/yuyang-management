@@ -8,6 +8,7 @@ from app.api.schemas.contract import (
     ContractUpdate,
     ContractWrite,
 )
+from app.services.contract_service import BillingPeriodError
 
 router = APIRouter(prefix="/contracts", tags=["Contracts"])
 
@@ -27,7 +28,12 @@ async def create_contract(contract: ContractWrite, service: ContractServiceDep):
     Returns:
         Created contract with assigned ID
     """
-    created_contract = await service.create(contract)
+    try:
+        created_contract = await service.create(contract)
+    except BillingPeriodError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)
+        )
     if created_contract is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -104,6 +110,10 @@ async def update_contract_by_id(
     try:
         updated_contract = await service.update(contract_id, contract)
         return updated_contract
+    except BillingPeriodError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

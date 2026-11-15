@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { billApi, contractApi } from '../services/api';
 import type { Bill, BillStatus } from '../types';
 import { getBillStatusDisplay } from '../utils/billStatusDisplay';
+import { getBillEndDate } from '../utils/billingPeriod';
 
 export interface BillItemRow {
   id: string;
@@ -91,42 +92,6 @@ function getBillingIntervalDisplay(value: string | null | undefined): string {
   return `${value} 月`;
 }
 
-/** 起始日 + 月數，回傳 YYYY-MM-DD。資料庫為 UTC，故以 getUTC* 解讀起始日。 */
-function addMonthsToDate(iso: string | null | undefined, months: number): string {
-  if (!iso || !Number.isInteger(months) || months < 0) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const y = d.getUTCFullYear();
-  const m = d.getUTCMonth() + 1;
-  const day = d.getUTCDate();
-  let newM = m + months;
-  let newY = y;
-  while (newM > 12) {
-    newM -= 12;
-    newY += 1;
-  }
-  while (newM < 1) {
-    newM += 12;
-    newY -= 1;
-  }
-  const lastDay = new Date(Date.UTC(newY, newM, 0)).getUTCDate();
-  const newDay = Math.min(day, lastDay);
-  return `${newY}-${String(newM).padStart(2, '0')}-${String(newDay).padStart(2, '0')}`;
-}
-
-/** 帳單結束日期 = (帳單起始日 + 帳單週期月數) - 1 日（該週期最後一天）。純日曆運算，回傳 YYYY-MM-DD。 */
-function getBillEndDate(startIso: string | null | undefined, intervalMonths: number): string {
-  const nextStart = addMonthsToDate(startIso, intervalMonths);
-  if (!nextStart) return '';
-  const [y, m, day] = nextStart.split('-').map(Number);
-  const d = new Date(Date.UTC(y, m - 1, day));
-  d.setUTCDate(d.getUTCDate() - 1);
-  const ey = d.getUTCFullYear();
-  const em = d.getUTCMonth() + 1;
-  const ed = d.getUTCDate();
-  return `${ey}-${String(em).padStart(2, '0')}-${String(ed).padStart(2, '0')}`;
-}
-
 function EditIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -161,6 +126,7 @@ export default function BillDetailModal({
 }: BillDetailModalProps) {
   const [billingIntervalDisplay, setBillingIntervalDisplay] = useState<string>('—');
   const [billingIntervalMonths, setBillingIntervalMonths] = useState<number>(1);
+  const [billingContractEnd, setBillingContractEnd] = useState<string | null>(null);
   const [tableRows, setTableRows] = useState<BillItemRow[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
@@ -181,6 +147,7 @@ export default function BillDetailModal({
       const intervalMonths = parseInt(contract.billing_interval ?? '1', 10) || 1;
       setBillingIntervalDisplay(getBillingIntervalDisplay(contract.billing_interval ?? null));
       setBillingIntervalMonths(intervalMonths);
+      setBillingContractEnd(contract.end_date ?? null);
       if (billData.items && billData.items.length > 0) {
         const sorted = [...billData.items].sort((a, b) => a.sort_order - b.sort_order);
         setTableRows(
@@ -198,6 +165,7 @@ export default function BillDetailModal({
     } catch {
       setBillingIntervalDisplay('—');
       setBillingIntervalMonths(1);
+      setBillingContractEnd(null);
       setTableRows([]);
     }
   }, []);
@@ -583,7 +551,7 @@ export default function BillDetailModal({
               <div>
                 <dt className="text-gray-500 font-medium">帳單結束日期</dt>
                 <dd className="text-gray-900">
-                  {formatDateOnly(getBillEndDate(bill.created_at, billingIntervalMonths)) || '—'}
+                  {formatDateOnly(getBillEndDate(bill.created_at, billingIntervalMonths, billingContractEnd)) || '—'}
                 </dd>
               </div>
               <div>

@@ -4,6 +4,11 @@ import type { Bill, Contract, ContractWithCustomer } from '../types';
 import { getBillStatusDisplay } from '../utils/billStatusDisplay';
 import { getContractStatusDisplay } from '../utils/contractStatusDisplay';
 import BillDetailModal from './BillDetailModal';
+import {
+  addMonthsToDate,
+  getIntervalMismatchMessage,
+  toLocalYmd as toDateInputValue,
+} from '../utils/billingPeriod';
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—';
@@ -17,40 +22,6 @@ function formatDate(iso: string | null | undefined): string {
   } catch {
     return iso;
   }
-}
-
-function toDateInputValue(iso: string | null | undefined): string {
-  if (!iso) return '';
-  try {
-    const d = new Date(iso);
-    return d.toISOString().slice(0, 10);
-  } catch {
-    return '';
-  }
-}
-
-/** 起始日 + 帳單週期月數，回傳 YYYY-MM-DD；若日超過當月最後一天則取該月最後一天。 */
-function addMonthsToDate(iso: string | null | undefined, months: number): string {
-  if (!iso || !Number.isInteger(months) || months < 0) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const y = d.getFullYear();
-  const m = d.getMonth() + 1;
-  const day = d.getDate();
-  let newM = m + months;
-  let newY = y;
-  while (newM > 12) {
-    newM -= 12;
-    newY += 1;
-  }
-  while (newM < 1) {
-    newM += 12;
-    newY -= 1;
-  }
-  const lastDay = new Date(newY, newM, 0).getDate();
-  const newDay = Math.min(day, lastDay);
-  const result = new Date(newY, newM - 1, newDay);
-  return result.toISOString().slice(0, 10);
 }
 
 const CONTRACT_STATUS_OPTIONS = [
@@ -193,6 +164,15 @@ export default function ContractDetailModal({
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaveError(null);
+    const periodMessage = getIntervalMismatchMessage(
+      contract.start_date,
+      contract.end_date,
+      parseInt(editForm.billing_interval || contract.billing_interval || '1', 10)
+    );
+    if (periodMessage) {
+      setSaveError(periodMessage);
+      return;
+    }
     setSaveLoading(true);
     try {
       const payload: Partial<Contract> = {

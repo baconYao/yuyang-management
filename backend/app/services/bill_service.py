@@ -309,18 +309,20 @@ class BillService:
     async def create_all_bills_for_contract(
         self,
         db_contract: Contract,
-        bill_dates: list[datetime],
+        bill_periods: list[tuple[datetime, int]],
     ) -> None:
         """
         Build and add all bills for a contract (e.g. on PENDING -> ACTIVE).
         Does not commit; caller must commit to keep same transaction.
 
+        bill_periods is (bill start date, months billed) per bill.
+
         - status: DRAFT
         - bill date is stored in created_at/updated_at
-        - amount/tax/items use monthly_rent as one unit per bill
+        - one item per bill: quantity = months billed, unit_price = monthly_rent
         - previous_bill_number is chained in creation order
         """
-        if not bill_dates:
+        if not bill_periods:
             return
 
         invoice_type = (
@@ -329,29 +331,24 @@ class BillService:
             else InvoiceType.NO_INVOICE
         )
         unit_price = float(db_contract.monthly_rent)
-        subtotal = unit_price
-        tax_amount, amount = self._calculate_amounts_from_items(
-            [
-                {
-                    "quantity": 1.0,
-                    "unit_price": unit_price,
-                }
-            ],
-            invoice_type,
-        )
-        items_json = [
-            {
-                "product_name": db_contract.product_name or "",
-                "quantity": 1.0,
-                "unit_price": unit_price,
-                "amount": round(subtotal, 2),
-                "sort_order": 0,
-            }
-        ]
 
-        bill_numbers = await self._reserve_bill_numbers(db_contract, len(bill_dates))
+        bill_numbers = await self._reserve_bill_numbers(db_contract, len(bill_periods))
         prev_bill_number: str | None = None
-        for i, dt in enumerate(bill_dates):
+        for i, (dt, months) in enumerate(bill_periods):
+            quantity = float(months)
+            tax_amount, amount = self._calculate_amounts_from_items(
+                [{"quantity": quantity, "unit_price": unit_price}],
+                invoice_type,
+            )
+            items_json = [
+                {
+                    "product_name": db_contract.product_name or "",
+                    "quantity": quantity,
+                    "unit_price": unit_price,
+                    "amount": round(quantity * unit_price, 2),
+                    "sort_order": 0,
+                }
+            ]
             # Normalize to naive UTC for DB.
             bill_dt = dt
             if getattr(bill_dt, "tzinfo", None) is not None:

@@ -12,6 +12,7 @@ from app.api.schemas.customer import CustomerType
 from app.database.models.bill import Bill
 from app.database.models.contract import Contract
 from app.database.models.customer import Customer
+from app.services.contract_service import _add_months
 
 # Server-generated contract_number format: C-YYYY-MM-XXXXX (5 uppercase letters)
 CONTRACT_NUMBER_PATTERN = re.compile(r"^C-\d{4}-\d{2}-[A-Z]{5}$")
@@ -652,6 +653,7 @@ async def test_create_contract_with_new_billing_intervals(
     end_date = start_date + timedelta(days=365)
 
     for billing_interval in ("1", "2", "24", "36"):
+        end_date = _add_months(start_date, int(billing_interval)) - timedelta(days=1)
         contract_data = {
             "customer_id": str(test_customer.id),
             "product_name": f"Product {billing_interval}m",
