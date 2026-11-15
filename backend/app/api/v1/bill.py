@@ -119,7 +119,6 @@ async def get_bill_pdf(bill_number: str, service: BillServiceDep):
         "contact_person": customer.primary_contact or "",
         "phone": customer.contact_phone or "",
         "tax_id": customer.invoice_number or "",
-        "invoice_number": customer.invoice_number or "",
         "invoice_type": _invoice_type_to_str(bill.invoice_type),
         "notes": bill.notes or "",
         "invoice_issue_date": invoice_issue_date,
