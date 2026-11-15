@@ -19,7 +19,8 @@ function createRow(
   id?: string
 ): BillItemRow {
   return {
-    id: id ?? crypto.randomUUID(),
+    // React list key only. crypto.randomUUID() is undefined on plain-http origins (e.g. the NAS), which broke this modal.
+    id: id ?? `row-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
     productName,
     quantity,
     unitPrice,
