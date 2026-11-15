@@ -2,7 +2,7 @@ import calendar
 import logging
 import random
 import string
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import delete, func
@@ -67,18 +67,46 @@ def _add_months(dt: datetime, months: int) -> datetime:
     )
 
 
-def _compute_bill_dates(
+class BillingPeriodError(Exception):
+    """Contract term cannot be split evenly into billing intervals."""
+
+
+def _contract_months(start_date: datetime, end_date: datetime) -> int:
+    """Whole months in [start_date, end_date]; end_date is the last day (inclusive)."""
+    start_dt = _to_naive_utc(start_date)
+    end_dt = _to_naive_utc(end_date)
+    total = 0
+    while _add_months(start_dt, total + 1) <= end_dt + timedelta(days=1):
+        total += 1
+    return total
+
+
+def _check_billing_period(
+    start_date: datetime, end_date: datetime, interval_months: int
+) -> None:
+    """Raise BillingPeriodError unless the contract term is a multiple of the interval."""
+    total = _contract_months(start_date, end_date)
+    if total % interval_months:
+        raise BillingPeriodError(
+            f"Contract term ({total} months) is not divisible by the billing "
+            f"interval ({interval_months} months)"
+        )
+
+
+def _compute_bill_periods(
     start_date: datetime,
     end_date: datetime,
     interval_months: int,
-) -> list[datetime]:
+) -> list[tuple[datetime, int]]:
     """
-    Compute bill dates for a contract.
+    Compute (bill start date, months billed) for each bill of a contract.
 
-    Rules:
-    - first scheduled date = start_date
-    - each next date = previous + interval_months
-    - include dates while date <= end_date
+    - end_date is the contract's last day (inclusive), e.g. 2026-11-19..2029-11-18
+      is exactly 36 months
+    - bill i starts at start_date + i * interval_months, always counted from
+      start_date so a month-end start (e.g. the 31st) does not drift
+    - the last bill covers only the months left when the contract does not end on
+      an interval boundary (e.g. 36 months with a 24-month interval -> 24 + 12)
     - normalize to naive UTC for DB consistency
     """
     if interval_months <= 0:
@@ -88,12 +116,13 @@ def _compute_bill_dates(
     if start_dt > end_dt:
         return []
 
-    dates: list[datetime] = []
-    cur = start_dt
-    while cur <= end_dt:
-        dates.append(cur)
-        cur = _add_months(cur, interval_months)
-    return dates
+    # a contract shorter than a month is one bill
+    total = max(_contract_months(start_dt, end_dt), 1)
+
+    return [
+        (_add_months(start_dt, offset), min(interval_months, total - offset))
+        for offset in range(0, total, interval_months)
+    ]
 
 
 class ContractService:
@@ -158,6 +187,12 @@ class ContractService:
         """
         if contract is None:
             return None
+
+        _check_billing_period(
+            contract.start_date,
+            contract.end_date,
+            int(contract.billing_interval.value),
+        )
 
         # Verify customer_id exists before creating contract
         customer_statement = select(Customer).where(Customer.id == contract.customer_id)  # noqa: E501
@@ -262,6 +297,16 @@ class ContractService:
         # Update only provided fields
         update_data = contract_update.model_dump(exclude_unset=True)
 
+        if {"start_date", "end_date", "billing_interval"} & update_data.keys():
+            interval = (
+                update_data.get("billing_interval") or db_contract.billing_interval
+            )
+            _check_billing_period(
+                update_data.get("start_date") or db_contract.start_date,
+                update_data.get("end_date") or db_contract.end_date,
+                int(interval.value),
+            )
+
         # When transitioning PENDING -> ACTIVE: create all bills and set next_billing_date # noqa: E501
         creating_bills = False
         if "status" in update_data and update_data["status"] == ContractStatus.ACTIVE:  # noqa: E501
@@ -291,14 +336,14 @@ class ContractService:
             existing_count = int(existing_count_result.scalar_one() or 0)
             if existing_count == 0:
                 interval_months = int(db_contract.billing_interval.value)
-                bill_dates = _compute_bill_dates(
+                bill_periods = _compute_bill_periods(
                     db_contract.start_date,
                     db_contract.end_date,
                     interval_months,
                 )
                 await BillService(self._session).create_all_bills_for_contract(
                     db_contract,
-                    bill_dates=bill_dates,
+                    bill_periods=bill_periods,
                 )
 
         # Commit the changes

@@ -18,7 +18,7 @@ from app.api.schemas.contract import (
 from app.api.schemas.customer import CustomerType
 from app.database.models.contract import Contract
 from app.database.models.customer import Customer
-from app.services.contract_service import ContractService
+from app.services.contract_service import ContractService, _add_months
 
 # Server-generated contract_number format: C-YYYY-MM-XXXXX (5 uppercase letters)
 CONTRACT_NUMBER_PATTERN = re.compile(r"^C-\d{4}-\d{2}-[A-Z]{5}$")
@@ -71,7 +71,7 @@ async def test_get_by_id_success(contract_service, test_session, sample_customer
     from app.api.schemas.contract import ContractWrite
 
     start_date = datetime.now()
-    end_date = start_date + timedelta(days=365)
+    end_date = _add_months(start_date, 12) - timedelta(days=1)
 
     contract_data = ContractWrite(
         customer_id=sample_customer.id,
@@ -152,7 +152,6 @@ async def test_create_with_new_billing_intervals(
     from app.api.schemas.contract import ContractWrite
 
     start_date = datetime.now()
-    end_date = start_date + timedelta(days=365)
 
     for interval in (
         BillingInterval.ONE_MONTH,
@@ -164,7 +163,7 @@ async def test_create_with_new_billing_intervals(
             customer_id=sample_customer.id,
             product_name=f"Product {interval.name}",
             start_date=start_date,
-            end_date=end_date,
+            end_date=_add_months(start_date, int(interval.value)) - timedelta(days=1),
             monthly_rent=10000,
             billing_interval=interval,
             status=ContractStatus.ACTIVE,
@@ -212,7 +211,7 @@ async def test_get_all_with_contracts(contract_service, test_session, sample_cus
     from app.api.schemas.contract import ContractWrite
 
     start_date = datetime.now()
-    end_date = start_date + timedelta(days=365)
+    end_date = _add_months(start_date, 12) - timedelta(days=1)
 
     # Create multiple contracts
     contract1_data = ContractWrite(
@@ -249,7 +248,7 @@ async def test_get_all_with_contracts(contract_service, test_session, sample_cus
         customer_id=sample_customer.id,
         product_name="商品4",
         start_date=start_date,
-        end_date=end_date,
+        end_date=_add_months(start_date, 24) - timedelta(days=1),
         monthly_rent=25000,
         billing_interval=BillingInterval.TWENTY_FOUR_MONTHS,
         status=ContractStatus.ACTIVE,
@@ -340,7 +339,7 @@ async def test_get_all_filtered_by_customer_id(contract_service, test_session):
     from app.api.schemas.contract import ContractWrite
 
     start_date = datetime.now()
-    end_date = start_date + timedelta(days=365)
+    end_date = _add_months(start_date, 12) - timedelta(days=1)
 
     # Create contracts for customer 1
     contract1_data = ContractWrite(
@@ -422,7 +421,7 @@ async def test_get_all_filtered_by_nonexistent_customer_id(
     from app.api.schemas.contract import ContractWrite
 
     start_date = datetime.now()
-    end_date = start_date + timedelta(days=365)
+    end_date = _add_months(start_date, 12) - timedelta(days=1)
 
     contract_data = ContractWrite(
         customer_id=sample_customer.id,
@@ -461,7 +460,7 @@ async def test_create_contract_success(contract_service, test_session, sample_cu
     from app.api.schemas.contract import ContractWrite
 
     start_date = datetime.now()
-    end_date = start_date + timedelta(days=365)
+    end_date = _add_months(start_date, 12) - timedelta(days=1)
 
     contract_data = ContractWrite(
         customer_id=sample_customer.id,
@@ -523,7 +522,7 @@ async def test_create_contract_with_minimal_fields(
     from app.api.schemas.contract import ContractWrite
 
     start_date = datetime.now()
-    end_date = start_date + timedelta(days=365)
+    end_date = _add_months(start_date, 12) - timedelta(days=1)
 
     contract_data = ContractWrite(
         customer_id=sample_customer.id,
@@ -581,7 +580,7 @@ async def test_create_contract_invalid_customer_id(contract_service, test_sessio
     from app.api.schemas.contract import ContractWrite
 
     start_date = datetime.now()
-    end_date = start_date + timedelta(days=365)
+    end_date = _add_months(start_date, 12) - timedelta(days=1)
 
     # Use a non-existent customer_id
     non_existent_customer_id = uuid4()
@@ -628,7 +627,7 @@ async def test_delete_contract_success(contract_service, test_session, sample_cu
     from app.api.schemas.contract import ContractWrite
 
     start_date = datetime.now()
-    end_date = start_date + timedelta(days=365)
+    end_date = _add_months(start_date, 12) - timedelta(days=1)
 
     contract_data = ContractWrite(
         customer_id=sample_customer.id,
@@ -711,7 +710,7 @@ async def test_update_contract_success(contract_service, test_session, sample_cu
     from app.api.schemas.contract import ContractWrite
 
     start_date = datetime.now()
-    end_date = start_date + timedelta(days=365)
+    end_date = _add_months(start_date, 12) - timedelta(days=1)
 
     contract_data = ContractWrite(
         customer_id=sample_customer.id,
@@ -784,7 +783,7 @@ async def test_update_contract_partial_update(
 
     # Create a test contract
     start_date = datetime.now()
-    end_date = start_date + timedelta(days=365)
+    end_date = _add_months(start_date, 12) - timedelta(days=1)
 
     contract_data = ContractWrite(
         customer_id=sample_customer.id,
@@ -861,7 +860,7 @@ async def test_update_contract_with_termination(
 
     # Create a test contract
     start_date = datetime.now()
-    end_date = start_date + timedelta(days=365)
+    end_date = _add_months(start_date, 12) - timedelta(days=1)
 
     contract_data = ContractWrite(
         customer_id=sample_customer.id,

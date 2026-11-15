@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { contractApi } from '../services/api';
 import type { Contract, ContractWithCustomer } from '../types';
 import type { Customer } from '../types';
+import { getIntervalMismatchMessage } from '../utils/billingPeriod';
 
 const BILLING_INTERVAL_OPTIONS = [
   { value: '1', label: '1 個月' },
@@ -73,6 +74,7 @@ export default function AddContractModal({
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [periodDialog, setPeriodDialog] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const customerDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -163,6 +165,16 @@ export default function AddContractModal({
       if (Object.keys(errors).length > 0) {
         setFieldErrors(errors);
         setError('請填寫必填欄位後再儲存。');
+        return;
+      }
+
+      const periodMessage = getIntervalMismatchMessage(
+        form.start_date,
+        form.end_date,
+        Number(form.billing_interval)
+      );
+      if (periodMessage) {
+        setPeriodDialog(periodMessage);
         return;
       }
 
@@ -476,6 +488,32 @@ export default function AddContractModal({
           </div>
         </form>
       </div>
+
+      {periodDialog && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="period-dialog-title"
+        >
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 id="period-dialog-title" className="text-lg font-bold text-gray-800 mb-3">
+              無法建立合約
+            </h3>
+            <p className="text-sm text-gray-700 mb-6">{periodDialog}</p>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setPeriodDialog(null)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                我知道了
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
